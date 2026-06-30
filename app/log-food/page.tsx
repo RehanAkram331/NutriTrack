@@ -165,7 +165,7 @@ export default function LogFoodPage() {
   const [selectedAnalyzed, setSelectedAnalyzed] = useState<AnalyzedFood | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const searchTimer = useRef<ReturnType<typeof setTimeout>>()
+  const searchTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const router = useRouter()
 
   // ── Auth ──
