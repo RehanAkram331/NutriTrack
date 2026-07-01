@@ -13,29 +13,45 @@ export async function POST(req: NextRequest) {
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
     const result = await model.generateContent(
-      `You are a nutrition database. Give accurate nutritional values per 100g for: "${foodName}".
+      `You are a nutrition database expert. Give accurate nutritional values per 100g for: "${foodName}".
+Also provide the Bengali name if it is a common food in Bangladesh.
+Choose the most fitting category from: Grains, Vegetables, Fruits, Legumes, Fish & Seafood, Meat & Poultry, Eggs & Dairy, Oils & Fats, Nuts & Seeds, Spices, Snacks, Beverages, Traditional.
 Return ONLY valid JSON — no explanation, no markdown, no code fences:
 {
-  "name": "Proper Name",
-  "calories": 150,
-  "protein_g": 8.0,
-  "carbs_g": 20.0,
-  "fat_g": 5.0,
-  "saturated_fat_g": 1.5,
-  "fiber_g": 2.0,
-  "sugar_g": 3.0,
+  "name": "Proper English Name",
+  "name_bn": "বাংলা নাম or null",
+  "category": "Category",
+  "calories": 0,
+  "protein_g": 0,
+  "carbs_g": 0,
+  "fat_g": 0,
+  "saturated_fat_g": 0,
+  "fat_unsaturated_g": 0,
+  "fat_trans_g": 0,
+  "fiber_g": 0,
+  "sugar_g": 0,
   "vitamin_a": 0,
+  "vitamin_b1_mg": 0,
+  "vitamin_b2_mg": 0,
+  "vitamin_b3_mg": 0,
+  "vitamin_b6_mg": 0,
+  "vitamin_b12_mcg": 0,
   "vitamin_c": 0,
   "vitamin_d": 0,
   "vitamin_e": 0,
-  "calcium_mg": 20,
-  "iron_mg": 1.0,
-  "potassium_mg": 150,
-  "sodium_mg": 200,
+  "vitamin_k_mcg": 0,
+  "calcium_mg": 0,
+  "iron_mg": 0,
+  "magnesium_mg": 0,
+  "phosphorus_mg": 0,
+  "potassium_mg": 0,
+  "sodium_mg": 0,
+  "zinc_mg": 0,
   "unit_weight_g": null,
   "unit_label": null
 }
-Only set unit_weight_g and unit_label if the food is naturally counted as individual pieces (egg=60, banana=118, orange=131, apple=182, slice of bread=30). Set null for dishes, grains, beverages, and mixed foods.`
+All nutrient values are per 100g of food. Use realistic numbers — never return 0 for all nutrients.
+Set unit_weight_g (integer grams) and unit_label (singular word) ONLY for foods naturally counted as pieces: egg=60/"egg", banana=118/"banana", orange=131/"orange", apple=182/"apple", bread slice=30/"slice". Set null for rice, curries, liquids, and mixed dishes.`
     )
 
     const text = result.response.text()

@@ -59,23 +59,36 @@ export function getDailyTargets(goalCalories: number, weight_kg: number) {
 
 export interface FoodItem {
   name: string
+  name_bn?: string
+  category?: string
   calories: number
   protein_g: number
   carbs_g: number
   fat_g: number
   saturated_fat_g: number
+  fat_unsaturated_g?: number
+  fat_trans_g?: number
   fiber_g: number
   sugar_g: number
   vitamin_a: number
+  vitamin_b1_mg?: number
+  vitamin_b2_mg?: number
+  vitamin_b3_mg?: number
+  vitamin_b6_mg?: number
+  vitamin_b12_mcg?: number
   vitamin_c: number
   vitamin_d: number
   vitamin_e: number
+  vitamin_k_mcg?: number
   calcium_mg: number
   iron_mg: number
+  magnesium_mg?: number
+  phosphorus_mg?: number
   potassium_mg: number
   sodium_mg: number
-  unit_weight_g?: number  // approx grams per one piece/unit
-  unit_label?: string     // e.g. "egg", "banana"
+  zinc_mg?: number
+  unit_weight_g?: number
+  unit_label?: string
 }
 
 // Comprehensive food database with nutritional info per 100g
