@@ -137,7 +137,7 @@ export default function Dashboard() {
     <div className="min-h-screen">
       <Navbar name={profile.name} />
 
-      <div className="max-w-[1100px] mx-auto px-5 py-6">
+      <div className="max-w-[1100px] mx-auto px-4 pt-5 pb-24 sm:pb-8">
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <div>
@@ -157,7 +157,7 @@ export default function Dashboard() {
         </div>
 
         {/* Top cards row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
           {/* Calories Ring */}
           <div className="bg-gray-900 border border-slate-800 rounded-2xl p-6">
             <h3 className="m-0 mb-4 text-xs font-semibold text-slate-400 uppercase tracking-[0.05em]">Today's Calories</h3>
@@ -199,13 +199,13 @@ export default function Dashboard() {
           </div>
 
           {/* Macro circles */}
-          <div className="bg-gray-900 border border-slate-800 rounded-2xl p-6">
+          <div className="bg-gray-900 border border-slate-800 rounded-2xl p-5">
             <h3 className="m-0 mb-4 text-xs font-semibold text-slate-400 uppercase tracking-[0.05em]">Macronutrients</h3>
-            <div className="flex justify-around">
-              <CircleProgress value={totals.protein_g} target={targets.protein_g} label="Protein" unit="g" color="#818cf8" />
-              <CircleProgress value={totals.carbs_g} target={targets.carbs_g} label="Carbs" unit="g" color="#f59e0b" />
-              <CircleProgress value={totals.fat_g} target={targets.fat_g} label="Fat" unit="g" color="#34d399" />
-              <CircleProgress value={totals.fiber_g} target={targets.fiber_g} label="Fiber" unit="g" color="#fb7185" />
+            <div className="grid grid-cols-4 gap-1">
+              <CircleProgress value={totals.protein_g} target={targets.protein_g} label="Protein" unit="g" color="#818cf8" size={72} />
+              <CircleProgress value={totals.carbs_g} target={targets.carbs_g} label="Carbs" unit="g" color="#f59e0b" size={72} />
+              <CircleProgress value={totals.fat_g} target={targets.fat_g} label="Fat" unit="g" color="#34d399" size={72} />
+              <CircleProgress value={totals.fiber_g} target={targets.fiber_g} label="Fiber" unit="g" color="#fb7185" size={72} />
             </div>
           </div>
 
@@ -242,7 +242,7 @@ export default function Dashboard() {
         </div>
 
         {/* Sleep + Exercise row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
           {/* Sleep card */}
           <Link href="/log-activity" className="no-underline">
             <div className="bg-gray-900 border border-slate-800 rounded-2xl p-6 cursor-pointer hover:border-indigo-400/40 transition-colors h-full">
@@ -308,7 +308,7 @@ export default function Dashboard() {
         </div>
 
         {/* Vitamins + Minerals */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div className="bg-gray-900 border border-slate-800 rounded-2xl p-6">
             <h3 className="m-0 mb-4 text-xs font-semibold text-slate-400 uppercase tracking-[0.05em]">🧪 Vitamins</h3>
             <NutrientRow label="Vitamin A" value={totals.vitamin_a} target={targets.vitamin_a} unit="mcg" color="#f59e0b" />
@@ -327,9 +327,9 @@ export default function Dashboard() {
         </div>
 
         {/* Fats breakdown */}
-        <div className="bg-gray-900 border border-slate-800 rounded-2xl p-6 mb-5">
+        <div className="bg-gray-900 border border-slate-800 rounded-2xl p-5 mb-4">
           <h3 className="m-0 mb-4 text-xs font-semibold text-slate-400 uppercase tracking-[0.05em]">🧈 Fats Breakdown</h3>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {[
               { label: 'Total Fat', value: totals.fat_g, target: targets.fat_g, unit: 'g', color: '#34d399', emoji: '✅', desc: 'Essential fats' },
               { label: 'Saturated Fat', value: totals.saturated_fat_g, target: targets.saturated_fat_g, unit: 'g', color: '#f87171', emoji: '⚠️', desc: 'Limit intake' },

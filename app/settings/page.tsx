@@ -114,7 +114,7 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen">
       <Navbar name={profile.name} />
-      <div className="max-w-[800px] mx-auto px-5 py-6">
+      <div className="max-w-[800px] mx-auto px-5 pt-6 pb-24 sm:pb-6">
         <div className="mb-6">
           <h1 className="text-2xl font-extrabold m-0 mb-1">Settings ⚙️</h1>
           <p className="text-slate-500 text-sm m-0">Update your profile and view your weight history</p>
@@ -301,7 +301,7 @@ export default function SettingsPage() {
                       <button
                         type="button"
                         onClick={() => deleteWeightEntry(log.id)}
-                        className="opacity-0 group-hover:opacity-100 bg-transparent border-none text-slate-600 cursor-pointer text-base p-1 transition-all hover:text-red-400"
+                        className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 bg-transparent border-none text-slate-600 cursor-pointer text-base p-1 transition-all hover:text-red-400"
                         title="Delete entry"
                       >×</button>
                     </div>

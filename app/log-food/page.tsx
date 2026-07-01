@@ -407,7 +407,7 @@ export default function LogFoodPage() {
   return (
     <div className="min-h-screen">
       <Navbar name={profile?.name} />
-      <div className="max-w-[700px] mx-auto px-5 py-6">
+      <div className="max-w-[700px] mx-auto px-5 pt-6 pb-24 sm:pb-6">
         <div className="mb-6">
           <h1 className="text-2xl font-extrabold m-0 mb-1">Log Food 🍽️</h1>
           <p className="text-slate-500 text-sm m-0">Search the database, enter custom food, or snap a photo</p>

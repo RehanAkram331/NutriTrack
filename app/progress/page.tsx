@@ -134,8 +134,8 @@ export default function ProgressPage() {
   return (
     <div className="min-h-screen">
       <Navbar name={profile.name} />
-      <div className="max-w-[1100px] mx-auto px-5 py-6">
-        <div className="flex justify-between items-center mb-6">
+      <div className="max-w-[1100px] mx-auto px-5 pt-6 pb-24 sm:pb-6">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-0 justify-between items-start sm:items-center mb-6">
           <div>
             <h1 className="text-2xl font-extrabold m-0 mb-1">Your Progress 📈</h1>
             <p className="text-slate-500 text-sm m-0">Track your body transformation over time</p>
