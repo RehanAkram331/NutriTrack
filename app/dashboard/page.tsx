@@ -11,6 +11,9 @@ interface Profile {
   id: string; name: string; age: number; gender: string; weight_kg: number;
   height_cm: number; goal: string; activity_level: string;
 }
+interface SleepLog { hours_slept: number; quality: number | null }
+interface ExerciseLog { id: string; exercise_type: string; exercise_label: string; duration_minutes: number; calories_burned: number }
+
 interface FoodLog {
   id: string; meal_type: string; food_name: string; quantity_g: number;
   calories: number; protein_g: number; carbs_g: number; fat_g: number;
@@ -33,6 +36,8 @@ function sumLogs(logs: FoodLog[], key: NutrientKey): number {
 export default function Dashboard() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [logs, setLogs] = useState<FoodLog[]>([])
+  const [sleepLog, setSleepLog] = useState<SleepLog | null>(null)
+  const [exerciseLogs, setExerciseLogs] = useState<ExerciseLog[]>([])
   const [loading, setLoading] = useState(true)
   const [todayWeight, setTodayWeight] = useState('')
   const [weightInput, setWeightInput] = useState('')
@@ -53,6 +58,12 @@ export default function Dashboard() {
 
     const { data: wLog } = await supabase.from('weight_logs').select('weight_kg').eq('user_id', user.id).eq('date', today).single()
     if (wLog) setTodayWeight(wLog.weight_kg.toString())
+
+    const { data: sl } = await supabase.from('sleep_logs').select('hours_slept,quality').eq('user_id', user.id).eq('date', today).single()
+    setSleepLog(sl ?? null)
+
+    const { data: ex } = await supabase.from('exercise_logs').select('id,exercise_type,exercise_label,duration_minutes,calories_burned').eq('user_id', user.id).eq('date', today)
+    setExerciseLogs(ex || [])
 
     setLoading(false)
   }, [router, today])
@@ -228,6 +239,72 @@ export default function Dashboard() {
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Sleep + Exercise row */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
+          {/* Sleep card */}
+          <Link href="/log-activity" className="no-underline">
+            <div className="bg-gray-900 border border-slate-800 rounded-2xl p-6 cursor-pointer hover:border-indigo-400/40 transition-colors h-full">
+              <h3 className="m-0 mb-4 text-xs font-semibold text-slate-400 uppercase tracking-[0.05em]">😴 Sleep</h3>
+              <div className="flex items-center gap-4">
+                <div className="text-[48px] font-extrabold leading-none"
+                  style={{ background: 'linear-gradient(135deg, #818cf8, #22d3ee)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                  {sleepLog ? sleepLog.hours_slept : '7'}
+                  <span className="text-2xl">h</span>
+                </div>
+                <div>
+                  <div className="text-sm font-semibold text-slate-300">
+                    {sleepLog ? 'Logged tonight' : 'Default (not logged)'}
+                  </div>
+                  {sleepLog?.quality && (
+                    <div className="text-xs text-slate-500 mt-1">
+                      Quality: {['','😴','😐','😊','😄','🌟'][sleepLog.quality]}
+                    </div>
+                  )}
+                  {!sleepLog && (
+                    <div className="text-xs text-indigo-400 mt-1">+ Log your sleep →</div>
+                  )}
+                  {sleepLog && (parseFloat(sleepLog.hours_slept.toString()) < 6) && (
+                    <div className="text-xs text-red-400 mt-1">⚠️ Below recommended</div>
+                  )}
+                  {sleepLog && (parseFloat(sleepLog.hours_slept.toString()) >= 8) && (
+                    <div className="text-xs text-emerald-400 mt-1">✓ Great sleep!</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </Link>
+
+          {/* Exercise card */}
+          <Link href="/log-activity" className="no-underline">
+            <div className="bg-gray-900 border border-slate-800 rounded-2xl p-6 cursor-pointer hover:border-cyan-400/40 transition-colors h-full">
+              <h3 className="m-0 mb-4 text-xs font-semibold text-slate-400 uppercase tracking-[0.05em]">🏋️ Exercise</h3>
+              {exerciseLogs.length === 0 ? (
+                <div className="text-center py-2">
+                  <div className="text-3xl mb-2">🏃</div>
+                  <p className="text-slate-600 text-sm m-0">No workout logged today</p>
+                  <p className="text-cyan-400 text-xs mt-1">+ Log exercise →</p>
+                </div>
+              ) : (
+                <>
+                  <div className="flex flex-col gap-2 mb-3">
+                    {exerciseLogs.slice(0, 3).map(ex => (
+                      <div key={ex.id} className="flex justify-between items-center text-sm">
+                        <span className="text-slate-300 font-semibold">{ex.exercise_label || ex.exercise_type}</span>
+                        <span className="text-orange-400 font-bold text-xs">{ex.duration_minutes}min · {ex.calories_burned} kcal</span>
+                      </div>
+                    ))}
+                    {exerciseLogs.length > 3 && <p className="text-xs text-slate-600">+{exerciseLogs.length - 3} more</p>}
+                  </div>
+                  <div className="pt-2 border-t border-slate-800 flex justify-between text-xs">
+                    <span className="text-slate-500">Total burned</span>
+                    <span className="text-orange-400 font-bold">{exerciseLogs.reduce((s, e) => s + e.calories_burned, 0)} kcal</span>
+                  </div>
+                </>
+              )}
+            </div>
+          </Link>
         </div>
 
         {/* Vitamins + Minerals */}
