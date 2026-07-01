@@ -5,6 +5,7 @@ import { calculateBMI, getBMICategory } from '@/lib/nutrition'
 import Navbar from '@/components/Navbar'
 import { useRouter } from 'next/navigation'
 import { format, parseISO } from 'date-fns'
+import { confirmDelete } from '@/lib/confirm'
 
 interface Profile {
   id: string; name: string; age: number; gender: string;
@@ -91,6 +92,7 @@ export default function SettingsPage() {
   }
 
   async function deleteWeightEntry(id: string) {
+    if (!await confirmDelete('This weight entry will be permanently removed.')) return
     await supabase.from('weight_logs').delete().eq('id', id)
     setWeightLogs(prev => prev.filter(l => l.id !== id))
   }

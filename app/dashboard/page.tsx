@@ -6,6 +6,7 @@ import { NutrientRow, CircleProgress } from '@/components/NutrientBar'
 import Navbar from '@/components/Navbar'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { confirmDelete } from '@/lib/confirm'
 
 interface Profile {
   id: string; name: string; age: number; gender: string; weight_kg: number;
@@ -81,6 +82,7 @@ export default function Dashboard() {
   }
 
   async function deleteLog(id: string) {
+    if (!await confirmDelete('This food entry will be permanently removed.')) return
     await supabase.from('food_logs').delete().eq('id', id)
     setLogs(prev => prev.filter(l => l.id !== id))
   }

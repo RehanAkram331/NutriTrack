@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import Navbar from '@/components/Navbar'
 import { useRouter } from 'next/navigation'
+import { confirmDelete } from '@/lib/confirm'
 
 interface Profile { id: string; name: string; weight_kg: number }
 
@@ -138,6 +139,7 @@ export default function LogActivityPage() {
   }
 
   async function deleteExercise(id: string) {
+    if (!await confirmDelete('This exercise log will be permanently removed.')) return
     await supabase.from('exercise_logs').delete().eq('id', id)
     setTodayExercises(prev => prev.filter(e => e.id !== id))
   }

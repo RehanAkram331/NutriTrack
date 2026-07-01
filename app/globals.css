@@ -23,3 +23,41 @@ select option { background: #0f172a; }
 
 .nutrient-bar { height: 6px; border-radius: 999px; background: #1e293b; overflow: hidden; }
 .nutrient-bar-fill { height: 100%; border-radius: 999px; transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+
+/* SweetAlert2 dark theme overrides */
+.swal2-popup {
+  border: 1px solid #1e293b !important;
+  border-radius: 20px !important;
+  padding: 2rem !important;
+  font-family: 'Inter', system-ui, sans-serif !important;
+}
+.swal2-title {
+  font-size: 1.15rem !important;
+  font-weight: 700 !important;
+  color: #f1f5f9 !important;
+}
+.swal2-html-container {
+  color: #94a3b8 !important;
+  font-size: 0.875rem !important;
+}
+.swal2-confirm {
+  border-radius: 10px !important;
+  font-weight: 600 !important;
+  font-size: 0.875rem !important;
+  padding: 0.6rem 1.4rem !important;
+}
+.swal2-cancel {
+  border-radius: 10px !important;
+  font-weight: 600 !important;
+  font-size: 0.875rem !important;
+  padding: 0.6rem 1.4rem !important;
+  color: #94a3b8 !important;
+}
+.swal2-cancel:hover {
+  background: #334155 !important;
+  color: #f1f5f9 !important;
+}
+.swal2-icon.swal2-warning {
+  border-color: #f87171 !important;
+  color: #f87171 !important;
+}
