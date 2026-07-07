@@ -140,7 +140,9 @@ function NutritionCard({ food, r }: {
 }
 
 export default function LogFoodPage() {
+  const today = new Date().toISOString().split('T')[0]
   const [profile, setProfile] = useState<Profile | null>(null)
+  const [logDate, setLogDate] = useState(today)
   const [meal, setMeal] = useState('breakfast')
   const [tab, setTab] = useState<'search' | 'custom' | 'photo'>('search')
 
@@ -274,7 +276,7 @@ export default function LogFoodPage() {
     const { data: { user } } = await supabase.auth.getUser()
     const q = grams / 100
     await supabase.from('food_logs').insert({
-      user_id: user!.id, date: new Date().toISOString().split('T')[0], meal_type: meal,
+      user_id: user!.id, date: logDate, meal_type: meal,
       food_name: food.name, quantity_g: grams,
       calories: +(food.calories * q).toFixed(2), protein_g: +(food.protein_g * q).toFixed(2),
       carbs_g: +(food.carbs_g * q).toFixed(2), fat_g: +(food.fat_g * q).toFixed(2),
@@ -423,8 +425,38 @@ export default function LogFoodPage() {
           </div>
         )}
 
-        {/* Meal selector */}
-        <div className="bg-gray-900 border border-slate-800 rounded-2xl p-6 mb-4">
+        {/* Date + Meal selector */}
+        <div className="bg-gray-900 border border-slate-800 rounded-2xl p-5 mb-4">
+          {/* Date picker */}
+          <div className="mb-4">
+            <label className={labelCls}>Date</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={logDate}
+                max={today}
+                onChange={e => setLogDate(e.target.value)}
+                className="flex-1 bg-slate-900 border border-slate-800 rounded-[10px] px-4 py-2.5 text-slate-100 text-sm outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/10 transition-colors"
+                style={{ colorScheme: 'dark' }}
+              />
+              {logDate !== today && (
+                <button
+                  type="button"
+                  onClick={() => setLogDate(today)}
+                  className="px-3 py-2.5 rounded-[10px] border border-slate-700 bg-transparent text-[12px] font-semibold text-slate-400 cursor-pointer hover:border-cyan-400 hover:text-cyan-400 transition-all whitespace-nowrap"
+                >
+                  Today
+                </button>
+              )}
+            </div>
+            {logDate !== today && (
+              <p className="mt-1.5 text-[11px] text-amber-400">
+                📅 Logging for a past date: {new Date(logDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+              </p>
+            )}
+          </div>
+
+          {/* Meal */}
           <label className={labelCls}>Meal</label>
           <div className="flex gap-2">
             {meals.map(m => (
