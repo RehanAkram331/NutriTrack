@@ -15,27 +15,27 @@ jobs:
       contents: write
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Accept Android SDK licenses
+        run: yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
-      - name: Install Android build tools & platform
+      - name: Install required SDK components
         run: |
-          sdkmanager --install "platform-tools" "platforms;android-35" "build-tools;35.0.0" --sdk_root=$ANDROID_SDK_ROOT
+          $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager \
+            "platforms;android-34" \
+            "build-tools;34.0.0" \
+            "platform-tools"
 
       - name: Write local.properties
         run: echo "sdk.dir=$ANDROID_SDK_ROOT" > caloriecanvas-android/local.properties
 
-      - name: Setup Gradle 8.9
-        uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
 
@@ -43,11 +43,10 @@ jobs:
         run: gradle wrapper --gradle-version 8.9 --distribution-type bin
         working-directory: caloriecanvas-android
 
-      - name: Make gradlew executable
-        run: chmod +x caloriecanvas-android/gradlew
-
       - name: Build debug APK
-        run: ./gradlew assembleDebug --stacktrace
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
         working-directory: caloriecanvas-android
 
       - name: Copy APK to public folder
