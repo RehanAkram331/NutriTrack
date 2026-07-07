@@ -54,6 +54,8 @@ export function getDailyTargets(goalCalories: number, weight_kg: number) {
     iron_mg: 18,      // mg
     potassium_mg: 3500, // mg
     sodium_mg: 2300,  // mg
+    zinc_mg: 11,      // mg
+    omega_3_mg: 1600, // mg (ALA equivalent)
   }
 }
 
@@ -87,6 +89,7 @@ export interface FoodItem {
   potassium_mg: number
   sodium_mg: number
   zinc_mg?: number
+  omega3_mg?: number
   unit_weight_g?: number
   unit_label?: string
 }

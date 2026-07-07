@@ -21,6 +21,7 @@ interface FoodLog {
   saturated_fat_g: number; fiber_g: number; sugar_g: number;
   vitamin_a: number; vitamin_c: number; vitamin_d: number; vitamin_e: number;
   calcium_mg: number; iron_mg: number; potassium_mg: number; sodium_mg: number;
+  zinc_mg: number | null; omega_3_mg: number | null;
 }
 
 const mealColors: Record<string, string> = {
@@ -28,10 +29,11 @@ const mealColors: Record<string, string> = {
 }
 
 type NutrientKey = 'calories' | 'protein_g' | 'carbs_g' | 'fat_g' | 'saturated_fat_g' | 'fiber_g' | 'sugar_g' |
-  'vitamin_a' | 'vitamin_c' | 'vitamin_d' | 'vitamin_e' | 'calcium_mg' | 'iron_mg' | 'potassium_mg' | 'sodium_mg'
+  'vitamin_a' | 'vitamin_c' | 'vitamin_d' | 'vitamin_e' | 'calcium_mg' | 'iron_mg' | 'potassium_mg' | 'sodium_mg' |
+  'zinc_mg' | 'omega_3_mg'
 
 function sumLogs(logs: FoodLog[], key: NutrientKey): number {
-  return logs.reduce((s, l) => s + (l[key] || 0), 0)
+  return logs.reduce((s, l) => s + (Number(l[key]) || 0), 0)
 }
 
 export default function Dashboard() {
@@ -121,6 +123,8 @@ export default function Dashboard() {
     iron_mg: sumLogs(logs, 'iron_mg'),
     potassium_mg: sumLogs(logs, 'potassium_mg'),
     sodium_mg: sumLogs(logs, 'sodium_mg'),
+    zinc_mg: sumLogs(logs, 'zinc_mg'),
+    omega_3_mg: sumLogs(logs, 'omega_3_mg'),
   }
 
   const calRemaining = goalCal - totals.calories
@@ -323,8 +327,10 @@ export default function Dashboard() {
             <h3 className="m-0 mb-4 text-xs font-semibold text-slate-400 uppercase tracking-[0.05em]">🪨 Minerals</h3>
             <NutrientRow label="Calcium" value={totals.calcium_mg} target={targets.calcium_mg} unit="mg" color="#34d399" />
             <NutrientRow label="Iron" value={totals.iron_mg} target={targets.iron_mg} unit="mg" color="#f87171" />
+            <NutrientRow label="Zinc" value={totals.zinc_mg} target={targets.zinc_mg} unit="mg" color="#a78bfa" />
             <NutrientRow label="Potassium" value={totals.potassium_mg} target={targets.potassium_mg} unit="mg" color="#818cf8" />
             <NutrientRow label="Sodium" value={totals.sodium_mg} target={targets.sodium_mg} unit="mg" color="#fb7185" />
+            <NutrientRow label="Omega-3" value={totals.omega_3_mg} target={targets.omega_3_mg} unit="mg" color="#22d3ee" />
           </div>
         </div>
 

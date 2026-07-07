@@ -56,6 +56,7 @@ Respond with ONLY a valid JSON object — no markdown, no code fences, no extra 
       "potassium_mg": 0,
       "sodium_mg": 0,
       "zinc_mg": 0,
+      "omega3_mg": 0,
       "unit_weight_g": null,
       "unit_label": null
     }

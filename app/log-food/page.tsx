@@ -49,6 +49,7 @@ function mapToFoodItem(row: any): FoodItem {
     potassium_mg: Number(row.potassium_mg ?? 0),
     sodium_mg: Number(row.sodium_mg ?? 0),
     zinc_mg: row.zinc_mg != null ? Number(row.zinc_mg) : undefined,
+    omega3_mg: row.omega_3_mg != null ? Number(row.omega_3_mg) : row.omega3_mg != null ? Number(row.omega3_mg) : undefined,
     unit_weight_g: row.serving_size_g ? Number(row.serving_size_g) : row.unit_weight_g ? Number(row.unit_weight_g) : undefined,
     unit_label: row.unit_label ? String(row.unit_label) : undefined,
   }
@@ -264,6 +265,7 @@ export default function LogFoodPage() {
       potassium_mg: food.potassium_mg,
       sodium_mg: food.sodium_mg,
       zinc_mg: food.zinc_mg ?? null,
+      omega_3_mg: food.omega3_mg ?? null,
       serving_size_g: food.unit_weight_g ?? null,
     })
   }
@@ -282,6 +284,8 @@ export default function LogFoodPage() {
       vitamin_e: +(food.vitamin_e * q).toFixed(2), calcium_mg: +(food.calcium_mg * q).toFixed(2),
       iron_mg: +(food.iron_mg * q).toFixed(2), potassium_mg: +(food.potassium_mg * q).toFixed(2),
       sodium_mg: +(food.sodium_mg * q).toFixed(2),
+      zinc_mg: food.zinc_mg != null ? +(food.zinc_mg * q).toFixed(3) : null,
+      omega_3_mg: food.omega3_mg != null ? +(food.omega3_mg * q).toFixed(3) : null,
     })
   }
 

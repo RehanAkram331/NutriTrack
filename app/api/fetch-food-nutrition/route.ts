@@ -47,6 +47,7 @@ Return ONLY valid JSON — no explanation, no markdown, no code fences:
   "potassium_mg": 0,
   "sodium_mg": 0,
   "zinc_mg": 0,
+  "omega3_mg": 0,
   "unit_weight_g": null,
   "unit_label": null
 }
