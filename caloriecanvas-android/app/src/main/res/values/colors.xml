@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg_dark">#0A0E1A</color>
+    <color name="cyan_400">#22D3EE</color>
+    <color name="indigo_400">#818CF8</color>
+    <color name="text_primary">#F1F5F9</color>
+    <color name="text_muted">#64748B</color>
+    <color name="white">#FFFFFF</color>
+</resources>

@@ -1,0 +1,49 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'caloriecanvas-android/**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.9'
+
+      - name: Write local.properties
+        run: echo "sdk.dir=$ANDROID_SDK_ROOT" > caloriecanvas-android/local.properties
+
+      - name: Build debug APK
+        run: gradle assembleDebug
+        working-directory: caloriecanvas-android
+
+      - name: Copy APK to public folder
+        run: cp caloriecanvas-android/app/build/outputs/apk/debug/app-debug.apk public/caloriecanvas.apk
+
+      - name: Commit & push APK
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/caloriecanvas.apk
+          git diff --staged --quiet || (git commit -m "chore: update Android APK [skip ci]" && git push)

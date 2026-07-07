@@ -1,0 +1,3 @@
+-keep class com.nutritrack.app.** { *; }
+-keepattributes *Annotation*
+-dontwarn okhttp3.**

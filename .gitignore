@@ -14,3 +14,9 @@ build/
 
 # logs
 *.log
+
+# Android
+caloriecanvas-android/local.properties
+caloriecanvas-android/.gradle/
+caloriecanvas-android/app/build/
+caloriecanvas-android/build/
