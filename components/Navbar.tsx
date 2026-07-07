@@ -28,7 +28,7 @@ export default function Navbar({ name }: { name?: string }) {
           <Link href="/dashboard" className="flex items-center gap-2 no-underline shrink-0">
             <span className="text-xl">🥗</span>
             <span className="font-extrabold text-base bg-gradient-to-br from-cyan-400 to-indigo-400 bg-clip-text text-transparent">
-              NutriTrack
+              CalorieCanvas
             </span>
           </Link>
 

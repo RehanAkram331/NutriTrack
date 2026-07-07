@@ -55,7 +55,7 @@ export default function AuthPage() {
               style={{ background: 'linear-gradient(135deg, #22d3ee, #818cf8)' }}
             >🥗</div>
             <span className="text-[26px] font-extrabold bg-gradient-to-br from-cyan-400 to-indigo-400 bg-clip-text text-transparent">
-              NutriTrack
+              CalorieCanvas
             </span>
           </div>
           <p className="text-slate-400 text-sm">Your personal nutrition intelligence</p>

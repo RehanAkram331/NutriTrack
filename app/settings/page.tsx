@@ -313,6 +313,44 @@ export default function SettingsPage() {
             </div>
           )}
         </div>
+
+        {/* Download Android App */}
+        <DownloadAppBanner />
+      </div>
+    </div>
+  )
+}
+
+function DownloadAppBanner() {
+  const isInApp = typeof navigator !== 'undefined' && navigator.userAgent.includes('CalorieCanvasApp')
+  if (isInApp) return null
+
+  return (
+    <div className="mt-5 rounded-2xl overflow-hidden border border-slate-800"
+      style={{ background: 'linear-gradient(135deg, rgba(34,211,238,0.08) 0%, rgba(129,140,248,0.08) 100%)' }}>
+      <div className="p-5 flex flex-col sm:flex-row items-center gap-4">
+        <div className="flex-shrink-0 w-14 h-14 rounded-2xl flex items-center justify-center text-3xl"
+          style={{ background: 'linear-gradient(135deg,#22d3ee22,#818cf822)', border: '1px solid #22d3ee33' }}>
+          📱
+        </div>
+        <div className="flex-1 text-center sm:text-left">
+          <div className="font-bold text-slate-100 text-[15px]">Get the Android App</div>
+          <div className="text-slate-500 text-[13px] mt-0.5">Install CalorieCanvas on your phone for a native experience</div>
+        </div>
+        <a
+          href="/caloriecanvas.apk"
+          download="CalorieCanvas.apk"
+          className="flex items-center gap-2 px-5 py-2.5 rounded-[10px] font-semibold text-[13px] text-white no-underline transition-all hover:opacity-90 hover:-translate-y-px active:scale-95 whitespace-nowrap"
+          style={{ background: 'linear-gradient(135deg,#22d3ee,#818cf8)' }}
+        >
+          ⬇ Download APK
+        </a>
+      </div>
+      <div className="px-5 pb-4 flex items-start gap-2">
+        <span className="text-amber-400 text-[11px] mt-px">⚠</span>
+        <p className="text-[11px] text-slate-600 m-0">
+          Enable <strong className="text-slate-500">Install unknown apps</strong> in Android Settings → Security before installing.
+        </p>
       </div>
     </div>
   )
