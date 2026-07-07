@@ -322,15 +322,7 @@ export default function SettingsPage() {
 }
 
 function DownloadAppBanner() {
-  const [apkReady, setApkReady] = useState<boolean | null>(null)
   const isInApp = typeof navigator !== 'undefined' && navigator.userAgent.includes('CalorieCanvasApp')
-
-  useEffect(() => {
-    fetch('/caloriecanvas.apk', { method: 'HEAD' })
-      .then(r => setApkReady(r.ok))
-      .catch(() => setApkReady(false))
-  }, [])
-
   if (isInApp) return null
 
   return (
@@ -345,37 +337,21 @@ function DownloadAppBanner() {
           <div className="font-bold text-slate-100 text-[15px]">Get the Android App</div>
           <div className="text-slate-500 text-[13px] mt-0.5">Install CalorieCanvas on your phone for a native experience</div>
         </div>
-
-        {apkReady === null && (
-          <div className="px-5 py-2.5 rounded-[10px] text-[13px] text-slate-500">Checking…</div>
-        )}
-
-        {apkReady === true && (
-          <a
-            href="/caloriecanvas.apk"
-            download="CalorieCanvas.apk"
-            className="flex items-center gap-2 px-5 py-2.5 rounded-[10px] font-semibold text-[13px] text-white no-underline transition-all hover:opacity-90 hover:-translate-y-px active:scale-95 whitespace-nowrap"
-            style={{ background: 'linear-gradient(135deg,#22d3ee,#818cf8)' }}
-          >
-            ⬇ Download APK
-          </a>
-        )}
-
-        {apkReady === false && (
-          <div className="flex items-center gap-2 px-4 py-2.5 rounded-[10px] border border-slate-700 text-[13px] font-semibold text-slate-500 whitespace-nowrap">
-            🔜 Coming Soon
-          </div>
-        )}
+        <a
+          href="/caloriecanvas.apk"
+          download="CalorieCanvas.apk"
+          className="flex items-center gap-2 px-5 py-2.5 rounded-[10px] font-semibold text-[13px] text-white no-underline transition-all hover:opacity-90 hover:-translate-y-px active:scale-95 whitespace-nowrap"
+          style={{ background: 'linear-gradient(135deg,#22d3ee,#818cf8)' }}
+        >
+          ⬇ Download APK
+        </a>
       </div>
-
-      {apkReady === true && (
-        <div className="px-5 pb-4 flex items-start gap-2">
-          <span className="text-amber-400 text-[11px] mt-px">⚠</span>
-          <p className="text-[11px] text-slate-600 m-0">
-            Enable <strong className="text-slate-500">Install unknown apps</strong> in Android Settings → Security before installing.
-          </p>
-        </div>
-      )}
+      <div className="px-5 pb-4 flex items-start gap-2">
+        <span className="text-amber-400 text-[11px] mt-px">⚠</span>
+        <p className="text-[11px] text-slate-600 m-0">
+          Enable <strong className="text-slate-500">Install unknown apps</strong> in Android Settings → Security before installing.
+        </p>
+      </div>
     </div>
   )
 }
