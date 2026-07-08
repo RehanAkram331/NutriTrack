@@ -1,20 +1,53 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Salad emoji-style splash icon -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-    <!-- Bowl -->
-    <path
-        android:fillColor="#22D3EE"
-        android:pathData="M20,52 Q20,80 54,80 Q88,80 88,52 Z" />
-    <!-- Rim -->
-    <path
-        android:fillColor="#818CF8"
-        android:pathData="M16,52 Q16,48 54,48 Q92,48 92,52 L88,52 Q88,50 54,50 Q20,50 20,52 Z" />
-    <!-- Leaves -->
-    <path
-        android:fillColor="#34D399"
-        android:pathData="M54,30 Q40,20 32,32 Q44,28 54,40 Q64,28 76,32 Q68,20 54,30 Z" />
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+
+    <!-- Bowl body -->
+    <path android:fillColor="#7B6BAE"
+        android:pathData="M14,52 Q14,82 50,82 Q86,82 86,52 Z"/>
+    <!-- Bowl rim -->
+    <path android:fillColor="#9580C9"
+        android:pathData="M14,52 A36,8.5 0 0,0 86,52 A36,8.5 0 0,0 14,52"/>
+    <!-- Rim highlight -->
+    <path android:fillColor="#A98FD8" android:fillAlpha="0.5"
+        android:pathData="M22,50 A28,4 0 0,0 78,50 A28,4 0 0,0 22,50"/>
+
+    <!-- Back dark greens -->
+    <path android:fillColor="#166534"
+        android:pathData="M21,48 Q22,34 36,34 Q50,34 51,45 Q43,40 36,42 Q29,40 21,48Z"/>
+    <path android:fillColor="#166534"
+        android:pathData="M79,48 Q78,34 64,34 Q50,34 49,45 Q57,40 64,42 Q71,40 79,48Z"/>
+
+    <!-- Mid greens -->
+    <path android:fillColor="#16A34A"
+        android:pathData="M32,53 Q35,27 50,27 Q65,27 68,53 Q61,44 50,46 Q39,44 32,53Z"/>
+
+    <!-- Front light greens -->
+    <path android:fillColor="#4ADE80"
+        android:pathData="M32,50 Q38,34 50,39 Q62,34 68,50 Q61,44 50,47 Q39,44 32,50Z"/>
+    <path android:fillColor="#86EFAC" android:fillAlpha="0.7"
+        android:pathData="M38,52 Q44,38 50,42 Q56,38 62,52 Q57,46 50,49 Q43,46 38,52Z"/>
+
+    <!-- Yellow ball left (shadow) -->
+    <path android:fillColor="#D97706"
+        android:pathData="M34.5,57.5 A6.5,6.5 0 1,0 47.5,57.5 A6.5,6.5 0 1,0 34.5,57.5"/>
+    <!-- Yellow ball left -->
+    <path android:fillColor="#F59E0B"
+        android:pathData="M35.5,56.5 A5.5,5.5 0 1,0 46.5,56.5 A5.5,5.5 0 1,0 35.5,56.5"/>
+    <!-- Yellow ball right (shadow) -->
+    <path android:fillColor="#B45309"
+        android:pathData="M53,55 A6,6 0 1,0 65,55 A6,6 0 1,0 53,55"/>
+    <!-- Yellow ball right -->
+    <path android:fillColor="#FBBF24"
+        android:pathData="M54,54 A5,5 0 1,0 64,54 A5,5 0 1,0 54,54"/>
+
+    <!-- Ball highlights -->
+    <path android:fillColor="#FDE68A" android:fillAlpha="0.85"
+        android:pathData="M36.5,53.5 A2,2 0 1,0 40.5,53.5 A2,2 0 1,0 36.5,53.5"/>
+    <path android:fillColor="#FDE68A" android:fillAlpha="0.85"
+        android:pathData="M54.5,51.5 A1.8,1.8 0 1,0 58.1,51.5 A1.8,1.8 0 1,0 54.5,51.5"/>
+
 </vector>

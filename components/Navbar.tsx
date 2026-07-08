@@ -26,7 +26,7 @@ export default function Navbar({ name }: { name?: string }) {
       <nav className="bg-gray-900/95 backdrop-blur-md border-b border-slate-800 sticky top-0 z-[100]">
         <div className="max-w-[1100px] mx-auto px-4 flex items-center h-[56px] gap-2">
           <Link href="/dashboard" className="flex items-center gap-2 no-underline shrink-0">
-            <span className="text-xl">🥗</span>
+            <img src="/logo.svg" alt="CalorieCanvas" width={28} height={28} />
             <span className="font-extrabold text-base bg-gradient-to-br from-cyan-400 to-indigo-400 bg-clip-text text-transparent">
               CalorieCanvas
             </span>

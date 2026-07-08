@@ -50,10 +50,7 @@ export default function AuthPage() {
         {/* Logo */}
         <div className="text-center mb-10">
           <div className="inline-flex items-center gap-3 mb-2">
-            <div
-              className="w-11 h-11 rounded-xl flex items-center justify-center text-[22px]"
-              style={{ background: 'linear-gradient(135deg, #22d3ee, #818cf8)' }}
-            >🥗</div>
+            <img src="/logo.svg" alt="CalorieCanvas" width={48} height={48} />
             <span className="text-[26px] font-extrabold bg-gradient-to-br from-cyan-400 to-indigo-400 bg-clip-text text-transparent">
               CalorieCanvas
             </span>
