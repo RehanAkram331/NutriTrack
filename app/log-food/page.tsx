@@ -269,6 +269,7 @@ export default function LogFoodPage() {
       zinc_mg: food.zinc_mg ?? null,
       omega_3_mg: food.omega3_mg ?? null,
       serving_size_g: food.unit_weight_g ?? null,
+      unit_label: food.unit_label ?? null,
     })
   }
 
