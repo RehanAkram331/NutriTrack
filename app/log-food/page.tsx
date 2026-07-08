@@ -237,39 +237,51 @@ export default function LogFoodPage() {
 
   // ── DB helpers ──
   async function saveFoodToDb(food: FoodItem) {
+    // Skip if this food name already exists in the library
+    const { data: existing } = await supabase
+      .from('foods')
+      .select('id')
+      .ilike('name_en', food.name)
+      .maybeSingle()
+    if (existing) return
+
     await supabase.from('foods').insert({
       name_en: food.name,
       name_bn: food.name_bn ?? null,
       category: food.category ?? null,
-      calories: food.calories,
-      protein_g: food.protein_g,
-      carbs_g: food.carbs_g,
-      fat_total_g: food.fat_g,
-      fat_saturated_g: food.saturated_fat_g,
+      // per-100g macros
+      calories:          food.calories,
+      protein_g:         food.protein_g,
+      carbs_g:           food.carbs_g,
+      fat_total_g:       food.fat_g,
+      fat_saturated_g:   food.saturated_fat_g,
       fat_unsaturated_g: food.fat_unsaturated_g ?? null,
-      fat_trans_g: food.fat_trans_g ?? null,
-      fiber_g: food.fiber_g,
-      sugar_g: food.sugar_g,
-      vitamin_a_mcg: food.vitamin_a,
-      vitamin_b1_mg: food.vitamin_b1_mg ?? null,
-      vitamin_b2_mg: food.vitamin_b2_mg ?? null,
-      vitamin_b3_mg: food.vitamin_b3_mg ?? null,
-      vitamin_b6_mg: food.vitamin_b6_mg ?? null,
+      fat_trans_g:       food.fat_trans_g ?? null,
+      fiber_g:           food.fiber_g,
+      sugar_g:           food.sugar_g,
+      // vitamins
+      vitamin_a_mcg:   food.vitamin_a,
+      vitamin_b1_mg:   food.vitamin_b1_mg   ?? null,
+      vitamin_b2_mg:   food.vitamin_b2_mg   ?? null,
+      vitamin_b3_mg:   food.vitamin_b3_mg   ?? null,
+      vitamin_b6_mg:   food.vitamin_b6_mg   ?? null,
       vitamin_b12_mcg: food.vitamin_b12_mcg ?? null,
-      vitamin_c_mg: food.vitamin_c,
-      vitamin_d_mcg: food.vitamin_d,
-      vitamin_e_mg: food.vitamin_e,
-      vitamin_k_mcg: food.vitamin_k_mcg ?? null,
-      calcium_mg: food.calcium_mg,
-      iron_mg: food.iron_mg,
-      magnesium_mg: food.magnesium_mg ?? null,
+      vitamin_c_mg:    food.vitamin_c,
+      vitamin_d_mcg:   food.vitamin_d,
+      vitamin_e_mg:    food.vitamin_e,
+      vitamin_k_mcg:   food.vitamin_k_mcg   ?? null,
+      // minerals
+      calcium_mg:    food.calcium_mg,
+      iron_mg:       food.iron_mg,
+      magnesium_mg:  food.magnesium_mg  ?? null,
       phosphorus_mg: food.phosphorus_mg ?? null,
-      potassium_mg: food.potassium_mg,
-      sodium_mg: food.sodium_mg,
-      zinc_mg: food.zinc_mg ?? null,
-      omega_3_mg: food.omega3_mg ?? null,
-      serving_size_g: food.unit_weight_g ?? null,
-      unit_label: food.unit_label ?? null,
+      potassium_mg:  food.potassium_mg,
+      sodium_mg:     food.sodium_mg,
+      zinc_mg:       food.zinc_mg       ?? null,
+      omega_3_mg:    food.omega3_mg     ?? null,
+      // serving info — drives piece (pic) vs gram (gm) mode
+      serving_size_g: food.unit_weight_g ?? null,  // weight per 1 piece (null = gm-only)
+      unit_label:     food.unit_label    ?? null,  // e.g. "egg", "slice", "piece"
     })
   }
 
