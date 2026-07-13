@@ -4,11 +4,12 @@ import { usePathname, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
 const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: '📊' },
-  { href: '/log-food', label: 'Log Food', icon: '🍽️' },
-  { href: '/log-activity', label: 'Activity', icon: '🏋️' },
-  { href: '/progress', label: 'Progress', icon: '📈' },
-  { href: '/settings', label: 'Settings', icon: '⚙️' },
+  { href: '/dashboard',    label: 'Dashboard', icon: '📊', mobileLabel: 'Home'     },
+  { href: '/log-food',     label: 'Log Food',  icon: '🍽️', mobileLabel: 'Food'     },
+  { href: '/log-activity', label: 'Activity',  icon: '🏋️', mobileLabel: 'Activity' },
+  { href: '/progress',     label: 'Progress',  icon: '📈', mobileLabel: 'Progress' },
+  { href: '/money',        label: 'Money',     icon: '💰', mobileLabel: 'Money'    },
+  { href: '/settings',     label: 'Settings',  icon: '⚙️', mobileLabel: 'Settings' },
 ]
 
 export default function Navbar({ name }: { name?: string }) {
@@ -83,9 +84,9 @@ export default function Navbar({ name }: { name?: string }) {
             return (
               <Link key={item.href} href={item.href} className="flex-1 no-underline">
                 <div className={`flex flex-col items-center pt-2 pb-3 gap-0.5 transition-colors ${active ? 'text-cyan-400' : 'text-slate-500'}`}>
-                  <span className="text-[20px] leading-none">{item.icon}</span>
+                  <span className="text-[18px] leading-none">{item.icon}</span>
                   <span className={`text-[9px] font-semibold ${active ? 'text-cyan-400' : 'text-slate-600'}`}>
-                    {item.label === 'Dashboard' ? 'Home' : item.label === 'Log Food' ? 'Food' : item.label}
+                    {item.mobileLabel}
                   </span>
                   {active && <div className="w-4 h-0.5 rounded-full bg-cyan-400 mt-0.5" />}
                 </div>
