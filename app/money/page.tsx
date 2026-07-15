@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import Navbar from '@/components/Navbar'
 import { useRouter } from 'next/navigation'
@@ -15,16 +15,13 @@ interface Transaction {
   description: string | null
   date: string
 }
-
 interface Profile { id: string; name: string }
-
-// A single row in the batch entry form
 interface EntryRow {
   key: number
   category: string
-  amount: string
+  item: string
   weight_kg: string
-  description: string
+  amount: string
 }
 
 const INCOME_CATS = ['Salary', 'Freelance', 'Business', 'Investment', 'Gift', 'Other']
@@ -33,22 +30,17 @@ const EXPENSE_CATS = [
   'Housing', 'Healthcare', 'Entertainment', 'Education',
   'Shopping', 'Utilities', 'Other',
 ]
-
-const inputCls = 'bg-slate-950 border border-slate-800 rounded-[8px] px-3 py-2.5 text-slate-100 w-full text-sm transition-colors focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/10 outline-none placeholder:text-slate-600'
-const labelCls = 'block text-xs font-semibold text-slate-400 uppercase tracking-[0.05em] mb-1.5'
+const WEIGHT_CATS = new Set(['Vegetable', 'Grocery', 'Food'])
 
 const catColors: Record<string, string> = {
-  Salary: '#22d3ee', Freelance: '#34d399', Business: '#818cf8', Investment: '#f59e0b',
-  Gift: '#f472b6',
+  Salary: '#22d3ee', Freelance: '#34d399', Business: '#818cf8', Investment: '#f59e0b', Gift: '#f472b6',
   Food: '#f87171', Vegetable: '#4ade80', Grocery: '#fb923c', Transport: '#60a5fa',
   Bike: '#a78bfa', Housing: '#818cf8', Healthcare: '#2dd4bf', Entertainment: '#e879f9',
   Education: '#60a5fa', Shopping: '#fbbf24', Utilities: '#94a3b8', Other: '#64748b',
 }
 
-const WEIGHT_CATS = new Set(['Vegetable', 'Grocery', 'Food'])
-
-let rowKey = 0
-const newRow = (category: string): EntryRow => ({ key: ++rowKey, category, amount: '', weight_kg: '', description: '' })
+let _key = 0
+const newRow = (cat: string): EntryRow => ({ key: ++_key, category: cat, item: '', weight_kg: '', amount: '' })
 
 function fmt(n: number) {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -66,7 +58,6 @@ export default function MoneyPage() {
   const [expenseDate, setExpenseDate] = useState(today)
   const [incomeRows, setIncomeRows] = useState<EntryRow[]>([newRow('Salary')])
   const [expenseRows, setExpenseRows] = useState<EntryRow[]>([newRow('Food')])
-
   const router = useRouter()
 
   const load = useCallback(async () => {
@@ -76,73 +67,59 @@ export default function MoneyPage() {
     if (!prof) { router.push('/onboarding'); return }
     setProfile(prof)
     const { data } = await supabase
-      .from('transactions')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('date', { ascending: false })
-      .order('created_at', { ascending: false })
+      .from('transactions').select('*').eq('user_id', user.id)
+      .order('date', { ascending: false }).order('created_at', { ascending: false })
     setTransactions(data ?? [])
   }, [router])
 
   useEffect(() => { load() }, [load])
 
-  // ── helpers ──
-  function updateRow(rows: EntryRow[], setRows: (r: EntryRow[]) => void, key: number, patch: Partial<EntryRow>) {
+  function patchRow(rows: EntryRow[], setRows: (r: EntryRow[]) => void, key: number, patch: Partial<EntryRow>) {
     setRows(rows.map(r => r.key === key ? { ...r, ...patch } : r))
   }
   function removeRow(rows: EntryRow[], setRows: (r: EntryRow[]) => void, key: number) {
-    if (rows.length === 1) return
-    setRows(rows.filter(r => r.key !== key))
+    if (rows.length > 1) setRows(rows.filter(r => r.key !== key))
   }
 
-  // ── save income batch ──
+  async function saveItems(rows: EntryRow[]) {
+    const toSave = rows.filter(r => r.item.trim())
+    if (!toSave.length) return
+    await supabase.from('expense_items').upsert(
+      toSave.map(r => ({ name: r.item.trim(), category: r.category })),
+      { onConflict: 'name,category', ignoreDuplicates: true }
+    )
+  }
+
   async function saveIncome(e: React.FormEvent) {
     e.preventDefault()
     if (!profile) return
     const valid = incomeRows.filter(r => r.amount)
     if (!valid.length) return
     setLoading(true)
-    await supabase.from('transactions').insert(
-      valid.map(r => ({
-        user_id: profile.id,
-        type: 'income',
-        date: incomeDate,
-        amount: parseFloat(r.amount),
-        category: r.category,
-        description: r.description || null,
-        weight_kg: null,
-      }))
-    )
+    await supabase.from('transactions').insert(valid.map(r => ({
+      user_id: profile.id, type: 'income', date: incomeDate,
+      amount: parseFloat(r.amount), category: r.category,
+      description: r.item || null, weight_kg: null,
+    })))
     setIncomeRows([newRow('Salary')])
-    await load()
-    setLoading(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    await load(); setLoading(false); setSaved(true); setTimeout(() => setSaved(false), 2000)
   }
 
-  // ── save expense batch ──
   async function saveExpense(e: React.FormEvent) {
     e.preventDefault()
     if (!profile) return
     const valid = expenseRows.filter(r => r.amount)
     if (!valid.length) return
     setLoading(true)
-    await supabase.from('transactions').insert(
-      valid.map(r => ({
-        user_id: profile.id,
-        type: 'expense',
-        date: expenseDate,
-        amount: parseFloat(r.amount),
-        category: r.category,
-        weight_kg: r.weight_kg ? parseFloat(r.weight_kg) : null,
-        description: r.description || null,
-      }))
-    )
+    await saveItems(valid)
+    await supabase.from('transactions').insert(valid.map(r => ({
+      user_id: profile.id, type: 'expense', date: expenseDate,
+      amount: parseFloat(r.amount), category: r.category,
+      weight_kg: r.weight_kg ? parseFloat(r.weight_kg) : null,
+      description: r.item || null,
+    })))
     setExpenseRows([newRow('Food')])
-    await load()
-    setLoading(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    await load(); setLoading(false); setSaved(true); setTimeout(() => setSaved(false), 2000)
   }
 
   async function deleteTransaction(id: string) {
@@ -152,43 +129,37 @@ export default function MoneyPage() {
     setTransactions(t => t.filter(x => x.id !== id))
   }
 
-  const totalIncome  = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
+  const totalIncome  = transactions.filter(t => t.type === 'income').reduce((s, t)  => s + t.amount, 0)
   const totalExpense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
   const balance      = totalIncome - totalExpense
-  const incomeList   = transactions.filter(t => t.type === 'income')
-  const expenseList  = transactions.filter(t => t.type === 'expense')
-
-  const incomeBatchTotal  = incomeRows.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0)
-  const expenseBatchTotal = expenseRows.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0)
+  const incomeBatch  = incomeRows.reduce((s, r)  => s + (parseFloat(r.amount) || 0), 0)
+  const expenseBatch = expenseRows.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0)
 
   return (
     <div className="min-h-screen" style={{ background: '#0a0e1a' }}>
       <Navbar name={profile?.name} />
       <div className="max-w-[700px] mx-auto px-4 pt-6 pb-28 sm:pb-8">
 
-        {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-slate-100">Money</h1>
           <p className="text-slate-500 text-sm mt-0.5">Track your income and expenses</p>
         </div>
 
-        {/* Balance cards */}
+        {/* Summary cards */}
         <div className="grid grid-cols-3 gap-3 mb-6">
-          <div className="rounded-2xl p-4 border border-slate-800" style={{ background: 'rgba(34,211,238,0.06)' }}>
-            <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Income</div>
-            <div className="text-lg font-bold text-emerald-400">৳{fmt(totalIncome)}</div>
-          </div>
-          <div className="rounded-2xl p-4 border border-slate-800" style={{ background: 'rgba(248,113,113,0.06)' }}>
-            <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Expense</div>
-            <div className="text-lg font-bold text-red-400">৳{fmt(totalExpense)}</div>
-          </div>
-          <div className={`rounded-2xl p-4 border ${balance >= 0 ? 'border-emerald-400/20' : 'border-red-400/20'}`}
-            style={{ background: balance >= 0 ? 'rgba(52,211,153,0.06)' : 'rgba(248,113,113,0.06)' }}>
-            <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Balance</div>
-            <div className={`text-lg font-bold ${balance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              {balance < 0 ? '-' : ''}৳{fmt(Math.abs(balance))}
+          {[
+            { label: 'Income',  value: totalIncome,  color: 'text-emerald-400', bg: 'rgba(34,211,238,0.06)',  border: 'border-slate-800' },
+            { label: 'Expense', value: totalExpense, color: 'text-red-400',     bg: 'rgba(248,113,113,0.06)', border: 'border-slate-800' },
+            { label: 'Balance', value: Math.abs(balance), color: balance >= 0 ? 'text-emerald-400' : 'text-red-400',
+              bg: balance >= 0 ? 'rgba(52,211,153,0.06)' : 'rgba(248,113,113,0.06)',
+              border: balance >= 0 ? 'border-emerald-400/20' : 'border-red-400/20',
+              prefix: balance < 0 ? '-' : '' },
+          ].map(c => (
+            <div key={c.label} className={`rounded-2xl p-4 border ${c.border}`} style={{ background: c.bg }}>
+              <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">{c.label}</div>
+              <div className={`text-lg font-bold ${c.color}`}>{c.prefix ?? ''}৳{fmt(c.value)}</div>
             </div>
-          </div>
+          ))}
         </div>
 
         {/* Tabs */}
@@ -204,138 +175,120 @@ export default function MoneyPage() {
                 background: tab === t.key
                   ? t.key === 'income'  ? 'linear-gradient(135deg,#22d3ee,#34d399)'
                   : t.key === 'expense' ? 'linear-gradient(135deg,#f87171,#f59e0b)'
-                  : 'linear-gradient(135deg,#22d3ee,#818cf8)'
-                  : 'transparent',
+                  : 'linear-gradient(135deg,#22d3ee,#818cf8)' : 'transparent',
                 color: tab === t.key ? 'white' : '#64748b',
-              }}>
-              {t.label}
-            </button>
+              }}>{t.label}</button>
           ))}
         </div>
 
-        {/* ── Overview ── */}
+        {/* Overview */}
         {tab === 'overview' && (
-          <div>
-            {transactions.length === 0 ? (
-              <div className="text-center py-16">
-                <div className="text-5xl mb-3">💰</div>
+          transactions.length === 0
+            ? <div className="text-center py-16"><div className="text-5xl mb-3">💰</div>
                 <div className="font-semibold text-slate-500">No transactions yet</div>
-                <div className="text-sm mt-1 text-slate-600">Add your first income or expense</div>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {transactions.map(tx => <TransactionRow key={tx.id} tx={tx} onDelete={deleteTransaction} />)}
-              </div>
-            )}
-          </div>
+                <div className="text-sm mt-1 text-slate-600">Add your first income or expense</div></div>
+            : <div className="space-y-2">{transactions.map(tx =>
+                <TransactionRow key={tx.id} tx={tx} onDelete={deleteTransaction} />)}</div>
         )}
 
-        {/* ── Income batch ── */}
+        {/* Income batch */}
         {tab === 'income' && (
           <div className="space-y-5">
             <form onSubmit={saveIncome} className="bg-gray-900 border border-slate-800 rounded-2xl p-5 space-y-4">
               <div className="flex items-center justify-between">
-                <div className="text-[13px] font-bold text-emerald-400 uppercase tracking-wider">Add Income</div>
-                <div>
-                  <label className="text-[11px] text-slate-500 mr-2">Date</label>
-                  <input type="date" max={today} value={incomeDate}
-                    onChange={e => setIncomeDate(e.target.value)}
+                <span className="text-[13px] font-bold text-emerald-400 uppercase tracking-wider">Add Income</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-slate-500">Date</span>
+                  <input type="date" max={today} value={incomeDate} onChange={e => setIncomeDate(e.target.value)}
                     className="bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 text-slate-300 text-xs outline-none focus:border-cyan-400" />
                 </div>
               </div>
 
-              {/* Rows */}
               <div className="space-y-3">
                 {incomeRows.map((row, i) => (
-                  <IncomeEntryRow key={row.key} row={row} index={i}
-                    onUpdate={patch => updateRow(incomeRows, setIncomeRows, row.key, patch)}
-                    onRemove={() => removeRow(incomeRows, setIncomeRows, row.key)}
-                    canRemove={incomeRows.length > 1} />
+                  <IncomeRow key={row.key} row={row} index={i}
+                    canRemove={incomeRows.length > 1}
+                    onUpdate={p => patchRow(incomeRows, setIncomeRows, row.key, p)}
+                    onRemove={() => removeRow(incomeRows, setIncomeRows, row.key)} />
                 ))}
               </div>
 
-              {/* Add row */}
-              <button type="button"
-                onClick={() => setIncomeRows(r => [...r, newRow('Salary')])}
-                className="w-full py-2 rounded-xl border border-dashed border-slate-700 text-slate-500 text-[13px] font-semibold cursor-pointer hover:border-emerald-400/40 hover:text-emerald-400 transition-all bg-transparent">
+              <button type="button" onClick={() => setIncomeRows(r => [...r, newRow('Salary')])}
+                className="w-full py-2 rounded-xl border border-dashed border-slate-700 text-slate-500 text-[13px] font-semibold cursor-pointer hover:border-emerald-400/50 hover:text-emerald-400 transition-all bg-transparent">
                 + Add Another
               </button>
 
-              {/* Total + Save */}
               <div className="flex items-center justify-between pt-1 border-t border-slate-800">
                 <div className="text-sm text-slate-400">
-                  {incomeRows.filter(r => r.amount).length} item{incomeRows.filter(r => r.amount).length !== 1 ? 's' : ''} ·{' '}
-                  <span className="text-emerald-400 font-bold">৳{fmt(incomeBatchTotal)}</span>
+                  {incomeRows.filter(r => r.amount).length} item(s) ·{' '}
+                  <span className="text-emerald-400 font-bold">৳{fmt(incomeBatch)}</span>
                 </div>
                 <button type="submit" disabled={loading || !incomeRows.some(r => r.amount)}
                   className="px-6 py-2.5 rounded-xl font-bold text-[13px] text-white border-none cursor-pointer disabled:opacity-40 transition-all"
                   style={{ background: 'linear-gradient(135deg,#22d3ee,#34d399)' }}>
-                  {loading ? 'Saving…' : saved ? '✓ Saved!' : `Save All`}
+                  {loading ? 'Saving…' : saved ? '✓ Saved!' : 'Save All'}
                 </button>
               </div>
             </form>
 
-            {incomeList.length > 0 && (
+            {transactions.filter(t => t.type === 'income').length > 0 && (
               <div>
                 <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Income History</div>
                 <div className="space-y-2">
-                  {incomeList.map(tx => <TransactionRow key={tx.id} tx={tx} onDelete={deleteTransaction} />)}
+                  {transactions.filter(t => t.type === 'income').map(tx =>
+                    <TransactionRow key={tx.id} tx={tx} onDelete={deleteTransaction} />)}
                 </div>
               </div>
             )}
           </div>
         )}
 
-        {/* ── Expense batch ── */}
+        {/* Expense batch */}
         {tab === 'expense' && (
           <div className="space-y-5">
             <form onSubmit={saveExpense} className="bg-gray-900 border border-slate-800 rounded-2xl p-5 space-y-4">
               <div className="flex items-center justify-between">
-                <div className="text-[13px] font-bold text-red-400 uppercase tracking-wider">Add Expense</div>
-                <div>
-                  <label className="text-[11px] text-slate-500 mr-2">Date</label>
-                  <input type="date" max={today} value={expenseDate}
-                    onChange={e => setExpenseDate(e.target.value)}
+                <span className="text-[13px] font-bold text-red-400 uppercase tracking-wider">Add Expense</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-slate-500">Date</span>
+                  <input type="date" max={today} value={expenseDate} onChange={e => setExpenseDate(e.target.value)}
                     className="bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 text-slate-300 text-xs outline-none focus:border-cyan-400" />
                 </div>
               </div>
 
-              {/* Rows */}
               <div className="space-y-3">
                 {expenseRows.map((row, i) => (
-                  <ExpenseEntryRow key={row.key} row={row} index={i}
-                    onUpdate={patch => updateRow(expenseRows, setExpenseRows, row.key, patch)}
-                    onRemove={() => removeRow(expenseRows, setExpenseRows, row.key)}
-                    canRemove={expenseRows.length > 1} />
+                  <ExpenseRow key={row.key} row={row} index={i}
+                    canRemove={expenseRows.length > 1}
+                    onUpdate={p => patchRow(expenseRows, setExpenseRows, row.key, p)}
+                    onRemove={() => removeRow(expenseRows, setExpenseRows, row.key)} />
                 ))}
               </div>
 
-              {/* Add row */}
-              <button type="button"
-                onClick={() => setExpenseRows(r => [...r, newRow('Food')])}
-                className="w-full py-2 rounded-xl border border-dashed border-slate-700 text-slate-500 text-[13px] font-semibold cursor-pointer hover:border-red-400/40 hover:text-red-400 transition-all bg-transparent">
+              <button type="button" onClick={() => setExpenseRows(r => [...r, newRow('Food')])}
+                className="w-full py-2 rounded-xl border border-dashed border-slate-700 text-slate-500 text-[13px] font-semibold cursor-pointer hover:border-red-400/50 hover:text-red-400 transition-all bg-transparent">
                 + Add Another
               </button>
 
-              {/* Total + Save */}
               <div className="flex items-center justify-between pt-1 border-t border-slate-800">
                 <div className="text-sm text-slate-400">
-                  {expenseRows.filter(r => r.amount).length} item{expenseRows.filter(r => r.amount).length !== 1 ? 's' : ''} ·{' '}
-                  <span className="text-red-400 font-bold">৳{fmt(expenseBatchTotal)}</span>
+                  {expenseRows.filter(r => r.amount).length} item(s) ·{' '}
+                  <span className="text-red-400 font-bold">৳{fmt(expenseBatch)}</span>
                 </div>
                 <button type="submit" disabled={loading || !expenseRows.some(r => r.amount)}
                   className="px-6 py-2.5 rounded-xl font-bold text-[13px] text-white border-none cursor-pointer disabled:opacity-40 transition-all"
                   style={{ background: 'linear-gradient(135deg,#f87171,#f59e0b)' }}>
-                  {loading ? 'Saving…' : saved ? '✓ Saved!' : `Save All`}
+                  {loading ? 'Saving…' : saved ? '✓ Saved!' : 'Save All'}
                 </button>
               </div>
             </form>
 
-            {expenseList.length > 0 && (
+            {transactions.filter(t => t.type === 'expense').length > 0 && (
               <div>
                 <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Expense History</div>
                 <div className="space-y-2">
-                  {expenseList.map(tx => <TransactionRow key={tx.id} tx={tx} onDelete={deleteTransaction} />)}
+                  {transactions.filter(t => t.type === 'expense').map(tx =>
+                    <TransactionRow key={tx.id} tx={tx} onDelete={deleteTransaction} />)}
                 </div>
               </div>
             )}
@@ -346,111 +299,168 @@ export default function MoneyPage() {
   )
 }
 
-// ── Income row component ──
-function IncomeEntryRow({ row, index, onUpdate, onRemove, canRemove }: {
-  row: EntryRow; index: number
-  onUpdate: (p: Partial<EntryRow>) => void
-  onRemove: () => void; canRemove: boolean
+// ── Income entry row ──
+function IncomeRow({ row, index, onUpdate, onRemove, canRemove }: {
+  row: EntryRow; index: number; canRemove: boolean
+  onUpdate: (p: Partial<EntryRow>) => void; onRemove: () => void
 }) {
   const color = catColors[row.category] ?? '#64748b'
   return (
-    <div className="rounded-xl border border-slate-800 p-3 space-y-2.5" style={{ background: '#0a0e1a' }}>
-      <div className="flex items-center justify-between">
-        <span className="text-[11px] font-bold text-slate-500">#{index + 1}</span>
-        {canRemove && (
-          <button type="button" onClick={onRemove}
-            className="text-slate-600 hover:text-red-400 text-lg leading-none bg-transparent border-none cursor-pointer">×</button>
-        )}
+    <div className="rounded-xl border border-slate-800 p-3 space-y-2.5" style={{ background: '#060a14' }}>
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Entry #{index + 1}</span>
+        {canRemove && <button type="button" onClick={onRemove}
+          className="text-slate-600 hover:text-red-400 text-xl leading-none bg-transparent border-none cursor-pointer">×</button>}
       </div>
 
-      {/* Category chips */}
-      <div className="flex flex-wrap gap-1.5">
-        {INCOME_CATS.map(c => (
-          <button key={c} type="button" onClick={() => onUpdate({ category: c })}
-            className="px-2.5 py-1 rounded-lg text-[11px] font-semibold border cursor-pointer transition-all"
-            style={{
-              background: row.category === c ? (catColors[c] + '22') : 'transparent',
-              borderColor: row.category === c ? catColors[c] : '#1e293b',
-              color: row.category === c ? catColors[c] : '#475569',
-            }}>
-            {c}
-          </button>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
-        <div className="relative">
-          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs font-bold" style={{ color }}>৳</span>
-          <input type="number" min="0" step="0.01" placeholder="Amount" required
-            className="bg-slate-950 border border-slate-800 rounded-[8px] pl-6 pr-3 py-2.5 text-slate-100 w-full text-sm outline-none focus:border-cyan-400 placeholder:text-slate-600"
-            value={row.amount} onChange={e => onUpdate({ amount: e.target.value })} />
+      {/* Step 1: Category */}
+      <div>
+        <div className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider mb-1.5">Category</div>
+        <div className="flex flex-wrap gap-1.5">
+          {INCOME_CATS.map(c => (
+            <button key={c} type="button" onClick={() => onUpdate({ category: c })}
+              className="px-2.5 py-1 rounded-lg text-[11px] font-semibold border cursor-pointer transition-all"
+              style={{
+                background: row.category === c ? (catColors[c] + '22') : 'transparent',
+                borderColor: row.category === c ? catColors[c] : '#1e293b',
+                color: row.category === c ? catColors[c] : '#475569',
+              }}>{c}</button>
+          ))}
         </div>
-        <input type="text" placeholder="Description (optional)"
-          className="bg-slate-950 border border-slate-800 rounded-[8px] px-3 py-2.5 text-slate-100 w-full text-sm outline-none focus:border-cyan-400 placeholder:text-slate-600"
-          value={row.description} onChange={e => onUpdate({ description: e.target.value })} />
+      </div>
+
+      {/* Step 2: Description + Amount */}
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <div className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider mb-1.5">Description</div>
+          <input type="text" placeholder="e.g. Monthly salary"
+            className="bg-slate-900 border border-slate-800 rounded-[8px] px-3 py-2.5 text-slate-100 w-full text-sm outline-none focus:border-cyan-400 placeholder:text-slate-600"
+            value={row.item} onChange={e => onUpdate({ item: e.target.value })} />
+        </div>
+        <div>
+          <div className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider mb-1.5">Amount</div>
+          <div className="relative">
+            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold" style={{ color }}>৳</span>
+            <input type="number" min="0" step="0.01" placeholder="0.00" required
+              className="bg-slate-900 border border-slate-800 rounded-[8px] pl-6 pr-3 py-2.5 text-slate-100 w-full text-sm outline-none focus:border-cyan-400 placeholder:text-slate-600"
+              value={row.amount} onChange={e => onUpdate({ amount: e.target.value })} />
+          </div>
+        </div>
       </div>
     </div>
   )
 }
 
-// ── Expense row component ──
-function ExpenseEntryRow({ row, index, onUpdate, onRemove, canRemove }: {
-  row: EntryRow; index: number
-  onUpdate: (p: Partial<EntryRow>) => void
-  onRemove: () => void; canRemove: boolean
+// ── Expense entry row with item search ──
+function ExpenseRow({ row, index, onUpdate, onRemove, canRemove }: {
+  row: EntryRow; index: number; canRemove: boolean
+  onUpdate: (p: Partial<EntryRow>) => void; onRemove: () => void
 }) {
+  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [open, setOpen] = useState(false)
+  const wrapRef = useRef<HTMLDivElement>(null)
   const color = catColors[row.category] ?? '#64748b'
   const showWeight = WEIGHT_CATS.has(row.category)
+
+  async function search(q: string) {
+    if (!q.trim()) { setSuggestions([]); setOpen(false); return }
+    const { data } = await supabase
+      .from('expense_items')
+      .select('name')
+      .eq('category', row.category)
+      .ilike('name', `%${q.trim()}%`)
+      .limit(6)
+    const results = data?.map(d => d.name) ?? []
+    setSuggestions(results)
+    setOpen(results.length > 0)
+  }
+
+  function pick(name: string) {
+    onUpdate({ item: name })
+    setSuggestions([])
+    setOpen(false)
+  }
+
   return (
-    <div className="rounded-xl border border-slate-800 p-3 space-y-2.5" style={{ background: '#0a0e1a' }}>
+    <div className="rounded-xl border border-slate-800 p-3 space-y-3" style={{ background: '#060a14' }}>
       <div className="flex items-center justify-between">
-        <span className="text-[11px] font-bold text-slate-500">#{index + 1}</span>
-        {canRemove && (
-          <button type="button" onClick={onRemove}
-            className="text-slate-600 hover:text-red-400 text-lg leading-none bg-transparent border-none cursor-pointer">×</button>
-        )}
+        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Entry #{index + 1}</span>
+        {canRemove && <button type="button" onClick={onRemove}
+          className="text-slate-600 hover:text-red-400 text-xl leading-none bg-transparent border-none cursor-pointer">×</button>}
       </div>
 
-      {/* Category chips */}
-      <div className="flex flex-wrap gap-1.5">
-        {EXPENSE_CATS.map(c => (
-          <button key={c} type="button"
-            onClick={() => onUpdate({ category: c, weight_kg: WEIGHT_CATS.has(c) ? row.weight_kg : '' })}
-            className="px-2.5 py-1 rounded-lg text-[11px] font-semibold border cursor-pointer transition-all"
-            style={{
-              background: row.category === c ? (catColors[c] + '22') : 'transparent',
-              borderColor: row.category === c ? catColors[c] : '#1e293b',
-              color: row.category === c ? catColors[c] : '#475569',
-            }}>
-            {c}
-          </button>
-        ))}
-      </div>
-
-      <div className={`grid gap-2 ${showWeight ? 'grid-cols-3' : 'grid-cols-2'}`}>
-        <div className="relative">
-          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold" style={{ color }}>৳</span>
-          <input type="number" min="0" step="0.01" placeholder="Amount" required
-            className="bg-slate-950 border border-slate-800 rounded-[8px] pl-6 pr-3 py-2.5 text-slate-100 w-full text-sm outline-none focus:border-cyan-400 placeholder:text-slate-600"
-            value={row.amount} onChange={e => onUpdate({ amount: e.target.value })} />
+      {/* Step 1: Category */}
+      <div>
+        <div className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider mb-1.5">1 · Category</div>
+        <div className="flex flex-wrap gap-1.5">
+          {EXPENSE_CATS.map(c => (
+            <button key={c} type="button"
+              onClick={() => onUpdate({ category: c, weight_kg: WEIGHT_CATS.has(c) ? row.weight_kg : '' })}
+              className="px-2.5 py-1 rounded-lg text-[11px] font-semibold border cursor-pointer transition-all"
+              style={{
+                background: row.category === c ? (catColors[c] + '22') : 'transparent',
+                borderColor: row.category === c ? catColors[c] : '#1e293b',
+                color: row.category === c ? catColors[c] : '#475569',
+              }}>{c}</button>
+          ))}
         </div>
-        {showWeight && (
-          <div className="relative">
-            <input type="number" min="0" step="0.001" placeholder="Weight"
-              className="bg-slate-950 border border-slate-800 rounded-[8px] px-3 pr-8 py-2.5 text-slate-100 w-full text-sm outline-none focus:border-cyan-400 placeholder:text-slate-600"
-              value={row.weight_kg} onChange={e => onUpdate({ weight_kg: e.target.value })} />
-            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 text-[10px] font-bold">kg</span>
+      </div>
+
+      {/* Step 2: Item */}
+      <div ref={wrapRef} className="relative">
+        <div className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider mb-1.5">2 · Item</div>
+        <input
+          type="text"
+          placeholder="Search or type item name…"
+          autoComplete="off"
+          value={row.item}
+          onChange={e => { onUpdate({ item: e.target.value }); search(e.target.value) }}
+          onFocus={() => { if (row.item) search(row.item) }}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          className="bg-slate-900 border border-slate-800 rounded-[8px] px-3 py-2.5 text-slate-100 w-full text-sm outline-none focus:border-cyan-400 placeholder:text-slate-600"
+        />
+        {open && suggestions.length > 0 && (
+          <div className="absolute top-full left-0 right-0 mt-1 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden">
+            {suggestions.map(s => (
+              <button key={s} type="button" onMouseDown={() => pick(s)}
+                className="w-full text-left px-4 py-2.5 text-[13px] text-slate-300 hover:bg-slate-800 border-none bg-transparent cursor-pointer transition-colors">
+                {s}
+              </button>
+            ))}
           </div>
         )}
-        <input type="text" placeholder="Description"
-          className="bg-slate-950 border border-slate-800 rounded-[8px] px-3 py-2.5 text-slate-100 w-full text-sm outline-none focus:border-cyan-400 placeholder:text-slate-600"
-          value={row.description} onChange={e => onUpdate({ description: e.target.value })} />
+      </div>
+
+      {/* Step 3+4: Weight + Amount */}
+      <div className={`grid gap-2 ${showWeight ? 'grid-cols-2' : 'grid-cols-1'}`}>
+        {showWeight && (
+          <div>
+            <div className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider mb-1.5">3 · Weight</div>
+            <div className="relative">
+              <input type="number" min="0" step="0.001" placeholder="0.0"
+                className="bg-slate-900 border border-slate-800 rounded-[8px] px-3 pr-8 py-2.5 text-slate-100 w-full text-sm outline-none focus:border-cyan-400 placeholder:text-slate-600"
+                value={row.weight_kg} onChange={e => onUpdate({ weight_kg: e.target.value })} />
+              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-500">kg</span>
+            </div>
+          </div>
+        )}
+        <div>
+          <div className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
+            {showWeight ? '4' : '3'} · Amount
+          </div>
+          <div className="relative">
+            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold" style={{ color }}>৳</span>
+            <input type="number" min="0" step="0.01" placeholder="0.00" required
+              className="bg-slate-900 border border-slate-800 rounded-[8px] pl-6 pr-3 py-2.5 text-slate-100 w-full text-sm outline-none focus:border-cyan-400 placeholder:text-slate-600"
+              value={row.amount} onChange={e => onUpdate({ amount: e.target.value })} />
+          </div>
+        </div>
       </div>
     </div>
   )
 }
 
-// ── Transaction row ──
+// ── Transaction history row ──
 function TransactionRow({ tx, onDelete }: { tx: Transaction; onDelete: (id: string) => void }) {
   const isIncome = tx.type === 'income'
   const color = catColors[tx.category] ?? '#64748b'
@@ -462,19 +472,13 @@ function TransactionRow({ tx, onDelete }: { tx: Transaction; onDelete: (id: stri
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[13px] font-semibold text-slate-200 truncate">
-            {tx.description || tx.category}
-          </span>
+          <span className="text-[13px] font-semibold text-slate-200 truncate">{tx.description || tx.category}</span>
           <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0"
-            style={{ background: color + '22', color }}>
-            {tx.category}
-          </span>
+            style={{ background: color + '22', color }}>{tx.category}</span>
         </div>
         <div className="flex items-center gap-2 mt-0.5">
           <span className="text-[11px] text-slate-600">{format(parseISO(tx.date), 'dd MMM yyyy')}</span>
-          {tx.weight_kg != null && (
-            <span className="text-[11px] text-slate-500 font-semibold">{tx.weight_kg} kg</span>
-          )}
+          {tx.weight_kg != null && <span className="text-[11px] text-slate-500 font-semibold">{tx.weight_kg} kg</span>}
         </div>
       </div>
       <div className="text-right flex-shrink-0">
