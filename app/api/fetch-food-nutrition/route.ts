@@ -13,9 +13,12 @@ export async function POST(req: NextRequest) {
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
     const result = await model.generateContent(
-      `You are a nutrition database expert. Give accurate nutritional values per 100g for: "${foodName}".
-Also provide the Bengali name if it is a common food in Bangladesh.
-Choose the most fitting category from: Grains, Vegetables, Fruits, Legumes, Fish & Seafood, Meat & Poultry, Eggs & Dairy, Oils & Fats, Nuts & Seeds, Spices, Snacks, Beverages, Traditional.
+      `You are a nutrition and medicine database expert. Given the name "${foodName}", determine if it is a FOOD/SUPPLEMENT or a MEDICINE/DRUG, then return accurate data.
+
+Choose the most fitting category from: Grains, Vegetables, Fruits, Legumes, Fish & Seafood, Meat & Poultry, Eggs & Dairy, Oils & Fats, Nuts & Seeds, Spices, Snacks, Beverages, Supplement, Medicine, Traditional.
+
+Also provide the Bengali name if it is a common item in Bangladesh.
+
 Return ONLY valid JSON — no explanation, no markdown, no code fences:
 {
   "name": "Proper English Name",
@@ -51,8 +54,16 @@ Return ONLY valid JSON — no explanation, no markdown, no code fences:
   "unit_weight_g": null,
   "unit_label": null
 }
-All nutrient values are per 100g of food. Use realistic numbers — never return 0 for all nutrients.
-Set unit_weight_g (integer grams) and unit_label (singular word) ONLY for foods naturally counted as pieces: egg=60/"egg", banana=118/"banana", orange=131/"orange", apple=182/"apple", bread slice=30/"slice". Set null for rice, curries, liquids, and mixed dishes.`
+
+RULES:
+1. All nutrient values are per 100g of the item.
+2. For FOOD: use realistic nutritional values — never return 0 for all macros.
+3. For MEDICINE or SUPPLEMENT (tablets, capsules, syrups, injections, vitamins, minerals, drugs):
+   - Set calories=0, protein_g=0, carbs_g=0, fat_g=0, fiber_g=0, sugar_g=0 (tablets have no meaningful food energy)
+   - Only fill in the specific vitamin/mineral that is the active ingredient. Example: Zinc 20mg tablet → set zinc_mg to (20 / tablet_weight_g * 100). Vitamin C 500mg → set vitamin_c to (500 / tablet_weight_g * 100).
+   - Set unit_weight_g to the actual weight of one tablet/capsule in grams (can be decimal, e.g. 0.3, 0.5, 1.0, 1.5). Set unit_label to "tablet", "capsule", "syrup ml", "drop", etc.
+4. For FOOD counted as pieces: egg=60g/"egg", banana=118g/"banana", orange=131g/"orange", apple=182g/"apple", bread slice=30g/"slice". Set null for rice, curries, liquids.
+5. unit_weight_g can be a decimal number (e.g. 0.3 for a small tablet).`
     )
 
     const text = result.response.text()
