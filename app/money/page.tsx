@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import Navbar from '@/components/Navbar'
 import { useRouter } from 'next/navigation'
@@ -299,120 +299,75 @@ export default function MoneyPage() {
   )
 }
 
-// ── Income entry row ──
-function IncomeRow({ row, index, onUpdate, onRemove, canRemove }: {
+// ── Income entry row — single horizontal line ──
+function IncomeRow({ row, onUpdate, onRemove, canRemove }: {
   row: EntryRow; index: number; canRemove: boolean
   onUpdate: (p: Partial<EntryRow>) => void; onRemove: () => void
 }) {
   const color = catColors[row.category] ?? '#64748b'
+  const sel = 'bg-slate-900 border border-slate-800 rounded-[8px] px-2 py-2.5 text-slate-100 text-sm outline-none focus:border-cyan-400 cursor-pointer'
   return (
-    <div className="rounded-xl border border-slate-800 p-3 space-y-2.5" style={{ background: '#060a14' }}>
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Entry #{index + 1}</span>
-        {canRemove && <button type="button" onClick={onRemove}
-          className="text-slate-600 hover:text-red-400 text-xl leading-none bg-transparent border-none cursor-pointer">×</button>}
+    <div className="flex items-center gap-2">
+      {/* Category */}
+      <select value={row.category} onChange={e => onUpdate({ category: e.target.value })}
+        className={sel} style={{ color, minWidth: 110 }}>
+        {INCOME_CATS.map(c => <option key={c} value={c}>{c}</option>)}
+      </select>
+
+      {/* Description */}
+      <input type="text" placeholder="Description"
+        className="bg-slate-900 border border-slate-800 rounded-[8px] px-3 py-2.5 text-slate-100 text-sm outline-none focus:border-cyan-400 placeholder:text-slate-600 flex-1 min-w-0"
+        value={row.item} onChange={e => onUpdate({ item: e.target.value })} />
+
+      {/* Amount */}
+      <div className="relative flex-shrink-0" style={{ width: 110 }}>
+        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold" style={{ color }}>৳</span>
+        <input type="number" min="0" step="0.01" placeholder="0.00" required
+          className="bg-slate-900 border border-slate-800 rounded-[8px] pl-6 pr-2 py-2.5 text-slate-100 w-full text-sm outline-none focus:border-cyan-400 placeholder:text-slate-600"
+          value={row.amount} onChange={e => onUpdate({ amount: e.target.value })} />
       </div>
 
-      {/* Step 1: Category */}
-      <div>
-        <div className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider mb-1.5">Category</div>
-        <div className="flex flex-wrap gap-1.5">
-          {INCOME_CATS.map(c => (
-            <button key={c} type="button" onClick={() => onUpdate({ category: c })}
-              className="px-2.5 py-1 rounded-lg text-[11px] font-semibold border cursor-pointer transition-all"
-              style={{
-                background: row.category === c ? (catColors[c] + '22') : 'transparent',
-                borderColor: row.category === c ? catColors[c] : '#1e293b',
-                color: row.category === c ? catColors[c] : '#475569',
-              }}>{c}</button>
-          ))}
-        </div>
-      </div>
-
-      {/* Step 2: Description + Amount */}
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <div className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider mb-1.5">Description</div>
-          <input type="text" placeholder="e.g. Monthly salary"
-            className="bg-slate-900 border border-slate-800 rounded-[8px] px-3 py-2.5 text-slate-100 w-full text-sm outline-none focus:border-cyan-400 placeholder:text-slate-600"
-            value={row.item} onChange={e => onUpdate({ item: e.target.value })} />
-        </div>
-        <div>
-          <div className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider mb-1.5">Amount</div>
-          <div className="relative">
-            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold" style={{ color }}>৳</span>
-            <input type="number" min="0" step="0.01" placeholder="0.00" required
-              className="bg-slate-900 border border-slate-800 rounded-[8px] pl-6 pr-3 py-2.5 text-slate-100 w-full text-sm outline-none focus:border-cyan-400 placeholder:text-slate-600"
-              value={row.amount} onChange={e => onUpdate({ amount: e.target.value })} />
-          </div>
-        </div>
-      </div>
+      {canRemove && (
+        <button type="button" onClick={onRemove}
+          className="flex-shrink-0 w-7 h-7 flex items-center justify-center text-slate-600 hover:text-red-400 bg-transparent border-none cursor-pointer text-lg leading-none">×</button>
+      )}
     </div>
   )
 }
 
-// ── Expense entry row with item search ──
-function ExpenseRow({ row, index, onUpdate, onRemove, canRemove }: {
+// ── Expense entry row — single horizontal line with item search ──
+function ExpenseRow({ row, onUpdate, onRemove, canRemove }: {
   row: EntryRow; index: number; canRemove: boolean
   onUpdate: (p: Partial<EntryRow>) => void; onRemove: () => void
 }) {
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [open, setOpen] = useState(false)
-  const wrapRef = useRef<HTMLDivElement>(null)
   const color = catColors[row.category] ?? '#64748b'
   const showWeight = WEIGHT_CATS.has(row.category)
+  const sel = 'bg-slate-900 border border-slate-800 rounded-[8px] px-2 py-2.5 text-sm outline-none focus:border-cyan-400 cursor-pointer'
 
   async function search(q: string) {
     if (!q.trim()) { setSuggestions([]); setOpen(false); return }
     const { data } = await supabase
-      .from('expense_items')
-      .select('name')
-      .eq('category', row.category)
-      .ilike('name', `%${q.trim()}%`)
-      .limit(6)
+      .from('expense_items').select('name')
+      .eq('category', row.category).ilike('name', `%${q.trim()}%`).limit(6)
     const results = data?.map(d => d.name) ?? []
     setSuggestions(results)
     setOpen(results.length > 0)
   }
 
-  function pick(name: string) {
-    onUpdate({ item: name })
-    setSuggestions([])
-    setOpen(false)
-  }
-
   return (
-    <div className="rounded-xl border border-slate-800 p-3 space-y-3" style={{ background: '#060a14' }}>
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Entry #{index + 1}</span>
-        {canRemove && <button type="button" onClick={onRemove}
-          className="text-slate-600 hover:text-red-400 text-xl leading-none bg-transparent border-none cursor-pointer">×</button>}
-      </div>
+    <div className="flex items-center gap-2">
+      {/* Category select */}
+      <select value={row.category}
+        onChange={e => onUpdate({ category: e.target.value, weight_kg: WEIGHT_CATS.has(e.target.value) ? row.weight_kg : '' })}
+        className={sel} style={{ color, minWidth: 108 }}>
+        {EXPENSE_CATS.map(c => <option key={c} value={c}>{c}</option>)}
+      </select>
 
-      {/* Step 1: Category */}
-      <div>
-        <div className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider mb-1.5">1 · Category</div>
-        <div className="flex flex-wrap gap-1.5">
-          {EXPENSE_CATS.map(c => (
-            <button key={c} type="button"
-              onClick={() => onUpdate({ category: c, weight_kg: WEIGHT_CATS.has(c) ? row.weight_kg : '' })}
-              className="px-2.5 py-1 rounded-lg text-[11px] font-semibold border cursor-pointer transition-all"
-              style={{
-                background: row.category === c ? (catColors[c] + '22') : 'transparent',
-                borderColor: row.category === c ? catColors[c] : '#1e293b',
-                color: row.category === c ? catColors[c] : '#475569',
-              }}>{c}</button>
-          ))}
-        </div>
-      </div>
-
-      {/* Step 2: Item */}
-      <div ref={wrapRef} className="relative">
-        <div className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider mb-1.5">2 · Item</div>
-        <input
-          type="text"
-          placeholder="Search or type item name…"
-          autoComplete="off"
+      {/* Item with autocomplete */}
+      <div className="relative flex-1 min-w-0">
+        <input type="text" placeholder="Item name…" autoComplete="off"
           value={row.item}
           onChange={e => { onUpdate({ item: e.target.value }); search(e.target.value) }}
           onFocus={() => { if (row.item) search(row.item) }}
@@ -422,7 +377,7 @@ function ExpenseRow({ row, index, onUpdate, onRemove, canRemove }: {
         {open && suggestions.length > 0 && (
           <div className="absolute top-full left-0 right-0 mt-1 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden">
             {suggestions.map(s => (
-              <button key={s} type="button" onMouseDown={() => pick(s)}
+              <button key={s} type="button" onMouseDown={() => { onUpdate({ item: s }); setOpen(false) }}
                 className="w-full text-left px-4 py-2.5 text-[13px] text-slate-300 hover:bg-slate-800 border-none bg-transparent cursor-pointer transition-colors">
                 {s}
               </button>
@@ -431,31 +386,28 @@ function ExpenseRow({ row, index, onUpdate, onRemove, canRemove }: {
         )}
       </div>
 
-      {/* Step 3+4: Weight + Amount */}
-      <div className={`grid gap-2 ${showWeight ? 'grid-cols-2' : 'grid-cols-1'}`}>
-        {showWeight && (
-          <div>
-            <div className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider mb-1.5">3 · Weight</div>
-            <div className="relative">
-              <input type="number" min="0" step="0.001" placeholder="0.0"
-                className="bg-slate-900 border border-slate-800 rounded-[8px] px-3 pr-8 py-2.5 text-slate-100 w-full text-sm outline-none focus:border-cyan-400 placeholder:text-slate-600"
-                value={row.weight_kg} onChange={e => onUpdate({ weight_kg: e.target.value })} />
-              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-500">kg</span>
-            </div>
-          </div>
-        )}
-        <div>
-          <div className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
-            {showWeight ? '4' : '3'} · Amount
-          </div>
-          <div className="relative">
-            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold" style={{ color }}>৳</span>
-            <input type="number" min="0" step="0.01" placeholder="0.00" required
-              className="bg-slate-900 border border-slate-800 rounded-[8px] pl-6 pr-3 py-2.5 text-slate-100 w-full text-sm outline-none focus:border-cyan-400 placeholder:text-slate-600"
-              value={row.amount} onChange={e => onUpdate({ amount: e.target.value })} />
-          </div>
+      {/* Weight — only for Food/Vegetable/Grocery */}
+      {showWeight && (
+        <div className="relative flex-shrink-0" style={{ width: 80 }}>
+          <input type="number" min="0" step="0.001" placeholder="kg"
+            className="bg-slate-900 border border-slate-800 rounded-[8px] px-2 pr-7 py-2.5 text-slate-100 w-full text-sm outline-none focus:border-cyan-400 placeholder:text-slate-600"
+            value={row.weight_kg} onChange={e => onUpdate({ weight_kg: e.target.value })} />
+          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-500">kg</span>
         </div>
+      )}
+
+      {/* Amount */}
+      <div className="relative flex-shrink-0" style={{ width: 100 }}>
+        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold" style={{ color }}>৳</span>
+        <input type="number" min="0" step="0.01" placeholder="0.00" required
+          className="bg-slate-900 border border-slate-800 rounded-[8px] pl-6 pr-2 py-2.5 text-slate-100 w-full text-sm outline-none focus:border-cyan-400 placeholder:text-slate-600"
+          value={row.amount} onChange={e => onUpdate({ amount: e.target.value })} />
       </div>
+
+      {canRemove && (
+        <button type="button" onClick={onRemove}
+          className="flex-shrink-0 w-7 h-7 flex items-center justify-center text-slate-600 hover:text-red-400 bg-transparent border-none cursor-pointer text-lg leading-none">×</button>
+      )}
     </div>
   )
 }
