@@ -18,6 +18,15 @@ interface Transaction {
 
 interface Profile { id: string; name: string }
 
+// A single row in the batch entry form
+interface EntryRow {
+  key: number
+  category: string
+  amount: string
+  weight_kg: string
+  description: string
+}
+
 const INCOME_CATS = ['Salary', 'Freelance', 'Business', 'Investment', 'Gift', 'Other']
 const EXPENSE_CATS = [
   'Food', 'Vegetable', 'Grocery', 'Transport', 'Bike',
@@ -25,18 +34,21 @@ const EXPENSE_CATS = [
   'Shopping', 'Utilities', 'Other',
 ]
 
-const inputCls = 'bg-slate-900 border border-slate-800 rounded-[10px] px-4 py-3 text-slate-100 w-full text-sm transition-colors focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/10 outline-none placeholder:text-slate-400'
+const inputCls = 'bg-slate-950 border border-slate-800 rounded-[8px] px-3 py-2.5 text-slate-100 w-full text-sm transition-colors focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/10 outline-none placeholder:text-slate-600'
 const labelCls = 'block text-xs font-semibold text-slate-400 uppercase tracking-[0.05em] mb-1.5'
 
 const catColors: Record<string, string> = {
   Salary: '#22d3ee', Freelance: '#34d399', Business: '#818cf8', Investment: '#f59e0b',
   Gift: '#f472b6',
-  Food: '#f87171', Vegetable: '#4ade80', Grocery: '#fb923c', Transport: '#fb923c',
+  Food: '#f87171', Vegetable: '#4ade80', Grocery: '#fb923c', Transport: '#60a5fa',
   Bike: '#a78bfa', Housing: '#818cf8', Healthcare: '#2dd4bf', Entertainment: '#e879f9',
   Education: '#60a5fa', Shopping: '#fbbf24', Utilities: '#94a3b8', Other: '#64748b',
 }
 
 const WEIGHT_CATS = new Set(['Vegetable', 'Grocery', 'Food'])
+
+let rowKey = 0
+const newRow = (category: string): EntryRow => ({ key: ++rowKey, category, amount: '', weight_kg: '', description: '' })
 
 function fmt(n: number) {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -50,8 +62,11 @@ export default function MoneyPage() {
   const [saved, setSaved] = useState(false)
   const today = new Date().toISOString().split('T')[0]
 
-  const [incomeForm, setIncomeForm] = useState({ amount: '', category: 'Salary', description: '', date: today })
-  const [expenseForm, setExpenseForm] = useState({ amount: '', weight_kg: '', category: 'Food', description: '', date: today })
+  const [incomeDate, setIncomeDate] = useState(today)
+  const [expenseDate, setExpenseDate] = useState(today)
+  const [incomeRows, setIncomeRows] = useState<EntryRow[]>([newRow('Salary')])
+  const [expenseRows, setExpenseRows] = useState<EntryRow[]>([newRow('Food')])
+
   const router = useRouter()
 
   const load = useCallback(async () => {
@@ -71,39 +86,59 @@ export default function MoneyPage() {
 
   useEffect(() => { load() }, [load])
 
+  // ── helpers ──
+  function updateRow(rows: EntryRow[], setRows: (r: EntryRow[]) => void, key: number, patch: Partial<EntryRow>) {
+    setRows(rows.map(r => r.key === key ? { ...r, ...patch } : r))
+  }
+  function removeRow(rows: EntryRow[], setRows: (r: EntryRow[]) => void, key: number) {
+    if (rows.length === 1) return
+    setRows(rows.filter(r => r.key !== key))
+  }
+
+  // ── save income batch ──
   async function saveIncome(e: React.FormEvent) {
     e.preventDefault()
-    if (!profile || !incomeForm.amount) return
+    if (!profile) return
+    const valid = incomeRows.filter(r => r.amount)
+    if (!valid.length) return
     setLoading(true)
-    await supabase.from('transactions').insert({
-      user_id: profile.id,
-      type: 'income',
-      amount: parseFloat(incomeForm.amount),
-      category: incomeForm.category,
-      description: incomeForm.description || null,
-      date: incomeForm.date,
-    })
-    setIncomeForm({ amount: '', category: 'Salary', description: '', date: today })
+    await supabase.from('transactions').insert(
+      valid.map(r => ({
+        user_id: profile.id,
+        type: 'income',
+        date: incomeDate,
+        amount: parseFloat(r.amount),
+        category: r.category,
+        description: r.description || null,
+        weight_kg: null,
+      }))
+    )
+    setIncomeRows([newRow('Salary')])
     await load()
     setLoading(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
 
+  // ── save expense batch ──
   async function saveExpense(e: React.FormEvent) {
     e.preventDefault()
-    if (!profile || !expenseForm.amount) return
+    if (!profile) return
+    const valid = expenseRows.filter(r => r.amount)
+    if (!valid.length) return
     setLoading(true)
-    await supabase.from('transactions').insert({
-      user_id: profile.id,
-      type: 'expense',
-      amount: parseFloat(expenseForm.amount),
-      weight_kg: expenseForm.weight_kg ? parseFloat(expenseForm.weight_kg) : null,
-      category: expenseForm.category,
-      description: expenseForm.description || null,
-      date: expenseForm.date,
-    })
-    setExpenseForm({ amount: '', weight_kg: '', category: 'Food', description: '', date: today })
+    await supabase.from('transactions').insert(
+      valid.map(r => ({
+        user_id: profile.id,
+        type: 'expense',
+        date: expenseDate,
+        amount: parseFloat(r.amount),
+        category: r.category,
+        weight_kg: r.weight_kg ? parseFloat(r.weight_kg) : null,
+        description: r.description || null,
+      }))
+    )
+    setExpenseRows([newRow('Food')])
     await load()
     setLoading(false)
     setSaved(true)
@@ -117,13 +152,14 @@ export default function MoneyPage() {
     setTransactions(t => t.filter(x => x.id !== id))
   }
 
-  const totalIncome   = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
-  const totalExpense  = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
-  const balance       = totalIncome - totalExpense
-  const incomeList    = transactions.filter(t => t.type === 'income')
-  const expenseList   = transactions.filter(t => t.type === 'expense')
+  const totalIncome  = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
+  const totalExpense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
+  const balance      = totalIncome - totalExpense
+  const incomeList   = transactions.filter(t => t.type === 'income')
+  const expenseList  = transactions.filter(t => t.type === 'expense')
 
-  const showWeight = WEIGHT_CATS.has(expenseForm.category)
+  const incomeBatchTotal  = incomeRows.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0)
+  const expenseBatchTotal = expenseRows.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0)
 
   return (
     <div className="min-h-screen" style={{ background: '#0a0e1a' }}>
@@ -158,8 +194,8 @@ export default function MoneyPage() {
         {/* Tabs */}
         <div className="flex bg-slate-900 rounded-xl p-1 mb-6 gap-1">
           {([
-            { key: 'overview', label: 'Overview' },
-            { key: 'income',   label: '+ Income' },
+            { key: 'overview', label: 'Overview'  },
+            { key: 'income',   label: '+ Income'  },
             { key: 'expense',  label: '+ Expense' },
           ] as const).map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
@@ -177,76 +213,66 @@ export default function MoneyPage() {
           ))}
         </div>
 
-        {/* ── Overview tab ── */}
+        {/* ── Overview ── */}
         {tab === 'overview' && (
           <div>
             {transactions.length === 0 ? (
-              <div className="text-center py-16 text-slate-600">
+              <div className="text-center py-16">
                 <div className="text-5xl mb-3">💰</div>
                 <div className="font-semibold text-slate-500">No transactions yet</div>
-                <div className="text-sm mt-1">Add your first income or expense</div>
+                <div className="text-sm mt-1 text-slate-600">Add your first income or expense</div>
               </div>
             ) : (
               <div className="space-y-2">
-                {transactions.map(tx => (
-                  <TransactionRow key={tx.id} tx={tx} onDelete={deleteTransaction} />
-                ))}
+                {transactions.map(tx => <TransactionRow key={tx.id} tx={tx} onDelete={deleteTransaction} />)}
               </div>
             )}
           </div>
         )}
 
-        {/* ── Income tab ── */}
+        {/* ── Income batch ── */}
         {tab === 'income' && (
           <div className="space-y-5">
             <form onSubmit={saveIncome} className="bg-gray-900 border border-slate-800 rounded-2xl p-5 space-y-4">
-              <div className="text-[13px] font-bold text-emerald-400 uppercase tracking-wider">Add Income</div>
-
-              <div className="grid grid-cols-2 gap-3">
+              <div className="flex items-center justify-between">
+                <div className="text-[13px] font-bold text-emerald-400 uppercase tracking-wider">Add Income</div>
                 <div>
-                  <label className={labelCls}>Amount (৳)</label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-semibold">৳</span>
-                    <input className={inputCls + ' pl-7'} type="number" min="0" step="0.01" placeholder="0.00"
-                      value={incomeForm.amount} onChange={e => setIncomeForm(f => ({ ...f, amount: e.target.value }))} required />
-                  </div>
-                </div>
-                <div>
-                  <label className={labelCls}>Date</label>
-                  <input className={inputCls} type="date" max={today}
-                    value={incomeForm.date} onChange={e => setIncomeForm(f => ({ ...f, date: e.target.value }))} />
+                  <label className="text-[11px] text-slate-500 mr-2">Date</label>
+                  <input type="date" max={today} value={incomeDate}
+                    onChange={e => setIncomeDate(e.target.value)}
+                    className="bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 text-slate-300 text-xs outline-none focus:border-cyan-400" />
                 </div>
               </div>
 
-              <div>
-                <label className={labelCls}>Category</label>
-                <div className="flex flex-wrap gap-2">
-                  {INCOME_CATS.map(c => (
-                    <button key={c} type="button"
-                      onClick={() => setIncomeForm(f => ({ ...f, category: c }))}
-                      className="px-3 py-1.5 rounded-lg text-[12px] font-semibold border cursor-pointer transition-all"
-                      style={{
-                        background: incomeForm.category === c ? (catColors[c] + '22') : 'transparent',
-                        borderColor: incomeForm.category === c ? catColors[c] : '#1e293b',
-                        color: incomeForm.category === c ? catColors[c] : '#64748b',
-                      }}>
-                      {c}
-                    </button>
-                  ))}
-                </div>
+              {/* Rows */}
+              <div className="space-y-3">
+                {incomeRows.map((row, i) => (
+                  <IncomeEntryRow key={row.key} row={row} index={i}
+                    onUpdate={patch => updateRow(incomeRows, setIncomeRows, row.key, patch)}
+                    onRemove={() => removeRow(incomeRows, setIncomeRows, row.key)}
+                    canRemove={incomeRows.length > 1} />
+                ))}
               </div>
 
-              <div>
-                <label className={labelCls}>Description (optional)</label>
-                <input className={inputCls} placeholder="e.g. Monthly salary"
-                  value={incomeForm.description} onChange={e => setIncomeForm(f => ({ ...f, description: e.target.value }))} />
-              </div>
-
-              <button type="submit" disabled={loading || !incomeForm.amount}
-                className="w-full py-3 rounded-xl font-bold text-[14px] text-white border-none cursor-pointer disabled:opacity-50 transition-all"
-                style={{ background: 'linear-gradient(135deg,#22d3ee,#34d399)' }}>
-                {loading ? 'Saving…' : saved ? '✓ Saved!' : 'Save Income'}
+              {/* Add row */}
+              <button type="button"
+                onClick={() => setIncomeRows(r => [...r, newRow('Salary')])}
+                className="w-full py-2 rounded-xl border border-dashed border-slate-700 text-slate-500 text-[13px] font-semibold cursor-pointer hover:border-emerald-400/40 hover:text-emerald-400 transition-all bg-transparent">
+                + Add Another
               </button>
+
+              {/* Total + Save */}
+              <div className="flex items-center justify-between pt-1 border-t border-slate-800">
+                <div className="text-sm text-slate-400">
+                  {incomeRows.filter(r => r.amount).length} item{incomeRows.filter(r => r.amount).length !== 1 ? 's' : ''} ·{' '}
+                  <span className="text-emerald-400 font-bold">৳{fmt(incomeBatchTotal)}</span>
+                </div>
+                <button type="submit" disabled={loading || !incomeRows.some(r => r.amount)}
+                  className="px-6 py-2.5 rounded-xl font-bold text-[13px] text-white border-none cursor-pointer disabled:opacity-40 transition-all"
+                  style={{ background: 'linear-gradient(135deg,#22d3ee,#34d399)' }}>
+                  {loading ? 'Saving…' : saved ? '✓ Saved!' : `Save All`}
+                </button>
+              </div>
             </form>
 
             {incomeList.length > 0 && (
@@ -260,70 +286,49 @@ export default function MoneyPage() {
           </div>
         )}
 
-        {/* ── Expense tab ── */}
+        {/* ── Expense batch ── */}
         {tab === 'expense' && (
           <div className="space-y-5">
             <form onSubmit={saveExpense} className="bg-gray-900 border border-slate-800 rounded-2xl p-5 space-y-4">
-              <div className="text-[13px] font-bold text-red-400 uppercase tracking-wider">Add Expense</div>
-
-              {/* Amount + Weight side by side */}
-              <div className={`grid gap-3 ${showWeight ? 'grid-cols-3' : 'grid-cols-2'}`}>
-                <div className={showWeight ? 'col-span-1' : ''}>
-                  <label className={labelCls}>Amount (৳)</label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-semibold">৳</span>
-                    <input className={inputCls + ' pl-7'} type="number" min="0" step="0.01" placeholder="0.00"
-                      value={expenseForm.amount} onChange={e => setExpenseForm(f => ({ ...f, amount: e.target.value }))} required />
-                  </div>
-                </div>
-
-                {showWeight && (
-                  <div>
-                    <label className={labelCls}>Weight (kg)</label>
-                    <div className="relative">
-                      <input className={inputCls + ' pr-10'} type="number" min="0" step="0.001" placeholder="0.0"
-                        value={expenseForm.weight_kg} onChange={e => setExpenseForm(f => ({ ...f, weight_kg: e.target.value }))} />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs font-semibold">kg</span>
-                    </div>
-                  </div>
-                )}
-
+              <div className="flex items-center justify-between">
+                <div className="text-[13px] font-bold text-red-400 uppercase tracking-wider">Add Expense</div>
                 <div>
-                  <label className={labelCls}>Date</label>
-                  <input className={inputCls} type="date" max={today}
-                    value={expenseForm.date} onChange={e => setExpenseForm(f => ({ ...f, date: e.target.value }))} />
+                  <label className="text-[11px] text-slate-500 mr-2">Date</label>
+                  <input type="date" max={today} value={expenseDate}
+                    onChange={e => setExpenseDate(e.target.value)}
+                    className="bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 text-slate-300 text-xs outline-none focus:border-cyan-400" />
                 </div>
               </div>
 
-              <div>
-                <label className={labelCls}>Category</label>
-                <div className="flex flex-wrap gap-2">
-                  {EXPENSE_CATS.map(c => (
-                    <button key={c} type="button"
-                      onClick={() => setExpenseForm(f => ({ ...f, category: c, weight_kg: WEIGHT_CATS.has(c) ? f.weight_kg : '' }))}
-                      className="px-3 py-1.5 rounded-lg text-[12px] font-semibold border cursor-pointer transition-all"
-                      style={{
-                        background: expenseForm.category === c ? (catColors[c] + '22') : 'transparent',
-                        borderColor: expenseForm.category === c ? catColors[c] : '#1e293b',
-                        color: expenseForm.category === c ? catColors[c] : '#64748b',
-                      }}>
-                      {c}
-                    </button>
-                  ))}
-                </div>
+              {/* Rows */}
+              <div className="space-y-3">
+                {expenseRows.map((row, i) => (
+                  <ExpenseEntryRow key={row.key} row={row} index={i}
+                    onUpdate={patch => updateRow(expenseRows, setExpenseRows, row.key, patch)}
+                    onRemove={() => removeRow(expenseRows, setExpenseRows, row.key)}
+                    canRemove={expenseRows.length > 1} />
+                ))}
               </div>
 
-              <div>
-                <label className={labelCls}>Description (optional)</label>
-                <input className={inputCls} placeholder="e.g. Tomato, Potato…"
-                  value={expenseForm.description} onChange={e => setExpenseForm(f => ({ ...f, description: e.target.value }))} />
-              </div>
-
-              <button type="submit" disabled={loading || !expenseForm.amount}
-                className="w-full py-3 rounded-xl font-bold text-[14px] text-white border-none cursor-pointer disabled:opacity-50 transition-all"
-                style={{ background: 'linear-gradient(135deg,#f87171,#f59e0b)' }}>
-                {loading ? 'Saving…' : saved ? '✓ Saved!' : 'Save Expense'}
+              {/* Add row */}
+              <button type="button"
+                onClick={() => setExpenseRows(r => [...r, newRow('Food')])}
+                className="w-full py-2 rounded-xl border border-dashed border-slate-700 text-slate-500 text-[13px] font-semibold cursor-pointer hover:border-red-400/40 hover:text-red-400 transition-all bg-transparent">
+                + Add Another
               </button>
+
+              {/* Total + Save */}
+              <div className="flex items-center justify-between pt-1 border-t border-slate-800">
+                <div className="text-sm text-slate-400">
+                  {expenseRows.filter(r => r.amount).length} item{expenseRows.filter(r => r.amount).length !== 1 ? 's' : ''} ·{' '}
+                  <span className="text-red-400 font-bold">৳{fmt(expenseBatchTotal)}</span>
+                </div>
+                <button type="submit" disabled={loading || !expenseRows.some(r => r.amount)}
+                  className="px-6 py-2.5 rounded-xl font-bold text-[13px] text-white border-none cursor-pointer disabled:opacity-40 transition-all"
+                  style={{ background: 'linear-gradient(135deg,#f87171,#f59e0b)' }}>
+                  {loading ? 'Saving…' : saved ? '✓ Saved!' : `Save All`}
+                </button>
+              </div>
             </form>
 
             {expenseList.length > 0 && (
@@ -341,12 +346,117 @@ export default function MoneyPage() {
   )
 }
 
+// ── Income row component ──
+function IncomeEntryRow({ row, index, onUpdate, onRemove, canRemove }: {
+  row: EntryRow; index: number
+  onUpdate: (p: Partial<EntryRow>) => void
+  onRemove: () => void; canRemove: boolean
+}) {
+  const color = catColors[row.category] ?? '#64748b'
+  return (
+    <div className="rounded-xl border border-slate-800 p-3 space-y-2.5" style={{ background: '#0a0e1a' }}>
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-bold text-slate-500">#{index + 1}</span>
+        {canRemove && (
+          <button type="button" onClick={onRemove}
+            className="text-slate-600 hover:text-red-400 text-lg leading-none bg-transparent border-none cursor-pointer">×</button>
+        )}
+      </div>
+
+      {/* Category chips */}
+      <div className="flex flex-wrap gap-1.5">
+        {INCOME_CATS.map(c => (
+          <button key={c} type="button" onClick={() => onUpdate({ category: c })}
+            className="px-2.5 py-1 rounded-lg text-[11px] font-semibold border cursor-pointer transition-all"
+            style={{
+              background: row.category === c ? (catColors[c] + '22') : 'transparent',
+              borderColor: row.category === c ? catColors[c] : '#1e293b',
+              color: row.category === c ? catColors[c] : '#475569',
+            }}>
+            {c}
+          </button>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <div className="relative">
+          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs font-bold" style={{ color }}>৳</span>
+          <input type="number" min="0" step="0.01" placeholder="Amount" required
+            className="bg-slate-950 border border-slate-800 rounded-[8px] pl-6 pr-3 py-2.5 text-slate-100 w-full text-sm outline-none focus:border-cyan-400 placeholder:text-slate-600"
+            value={row.amount} onChange={e => onUpdate({ amount: e.target.value })} />
+        </div>
+        <input type="text" placeholder="Description (optional)"
+          className="bg-slate-950 border border-slate-800 rounded-[8px] px-3 py-2.5 text-slate-100 w-full text-sm outline-none focus:border-cyan-400 placeholder:text-slate-600"
+          value={row.description} onChange={e => onUpdate({ description: e.target.value })} />
+      </div>
+    </div>
+  )
+}
+
+// ── Expense row component ──
+function ExpenseEntryRow({ row, index, onUpdate, onRemove, canRemove }: {
+  row: EntryRow; index: number
+  onUpdate: (p: Partial<EntryRow>) => void
+  onRemove: () => void; canRemove: boolean
+}) {
+  const color = catColors[row.category] ?? '#64748b'
+  const showWeight = WEIGHT_CATS.has(row.category)
+  return (
+    <div className="rounded-xl border border-slate-800 p-3 space-y-2.5" style={{ background: '#0a0e1a' }}>
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-bold text-slate-500">#{index + 1}</span>
+        {canRemove && (
+          <button type="button" onClick={onRemove}
+            className="text-slate-600 hover:text-red-400 text-lg leading-none bg-transparent border-none cursor-pointer">×</button>
+        )}
+      </div>
+
+      {/* Category chips */}
+      <div className="flex flex-wrap gap-1.5">
+        {EXPENSE_CATS.map(c => (
+          <button key={c} type="button"
+            onClick={() => onUpdate({ category: c, weight_kg: WEIGHT_CATS.has(c) ? row.weight_kg : '' })}
+            className="px-2.5 py-1 rounded-lg text-[11px] font-semibold border cursor-pointer transition-all"
+            style={{
+              background: row.category === c ? (catColors[c] + '22') : 'transparent',
+              borderColor: row.category === c ? catColors[c] : '#1e293b',
+              color: row.category === c ? catColors[c] : '#475569',
+            }}>
+            {c}
+          </button>
+        ))}
+      </div>
+
+      <div className={`grid gap-2 ${showWeight ? 'grid-cols-3' : 'grid-cols-2'}`}>
+        <div className="relative">
+          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold" style={{ color }}>৳</span>
+          <input type="number" min="0" step="0.01" placeholder="Amount" required
+            className="bg-slate-950 border border-slate-800 rounded-[8px] pl-6 pr-3 py-2.5 text-slate-100 w-full text-sm outline-none focus:border-cyan-400 placeholder:text-slate-600"
+            value={row.amount} onChange={e => onUpdate({ amount: e.target.value })} />
+        </div>
+        {showWeight && (
+          <div className="relative">
+            <input type="number" min="0" step="0.001" placeholder="Weight"
+              className="bg-slate-950 border border-slate-800 rounded-[8px] px-3 pr-8 py-2.5 text-slate-100 w-full text-sm outline-none focus:border-cyan-400 placeholder:text-slate-600"
+              value={row.weight_kg} onChange={e => onUpdate({ weight_kg: e.target.value })} />
+            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 text-[10px] font-bold">kg</span>
+          </div>
+        )}
+        <input type="text" placeholder="Description"
+          className="bg-slate-950 border border-slate-800 rounded-[8px] px-3 py-2.5 text-slate-100 w-full text-sm outline-none focus:border-cyan-400 placeholder:text-slate-600"
+          value={row.description} onChange={e => onUpdate({ description: e.target.value })} />
+      </div>
+    </div>
+  )
+}
+
+// ── Transaction row ──
 function TransactionRow({ tx, onDelete }: { tx: Transaction; onDelete: (id: string) => void }) {
   const isIncome = tx.type === 'income'
   const color = catColors[tx.category] ?? '#64748b'
   return (
     <div className="group flex items-center gap-3 bg-gray-900 border border-slate-800 rounded-xl px-4 py-3 hover:border-slate-700 transition-colors">
-      <div className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-base font-bold"
+      <div className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold"
         style={{ background: color + '22', border: `1px solid ${color}33`, color }}>
         {isIncome ? '↑' : '↓'}
       </div>
@@ -372,9 +482,7 @@ function TransactionRow({ tx, onDelete }: { tx: Transaction; onDelete: (id: stri
           {isIncome ? '+' : '-'}৳{tx.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
         </div>
         {tx.weight_kg != null && tx.weight_kg > 0 && (
-          <div className="text-[10px] text-slate-600">
-            ৳{(tx.amount / tx.weight_kg).toFixed(0)}/kg
-          </div>
+          <div className="text-[10px] text-slate-600">৳{(tx.amount / tx.weight_kg).toFixed(0)}/kg</div>
         )}
       </div>
       <button onClick={() => onDelete(tx.id)}
