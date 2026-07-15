@@ -199,12 +199,13 @@ export default function LogFoodPage() {
 
   // ── Supabase search (debounced) ──
   useEffect(() => {
-    if (search.length < 2) { setDbResults([]); setDbSearching(false); return }
+    if (search.trim().length < 2) { setDbResults([]); setDbSearching(false); return }
     clearTimeout(searchTimer.current)
     setDbSearching(true)
     searchTimer.current = setTimeout(async () => {
       try {
-        const { data } = await supabase.from('foods').select('*').or(`name_en.ilike.%${search}%,name_bn.ilike.%${search}%`).limit(10)
+        const q = search.trim()
+        const { data } = await supabase.from('foods').select('*').or(`name_en.ilike.%${q}%,name_bn.ilike.%${q}%`).limit(10)
         setDbResults((data || []).map(mapToFoodItem))
       } catch { setDbResults([]) }
       setDbSearching(false)
@@ -338,7 +339,7 @@ export default function LogFoodPage() {
     try {
       const res = await fetch('/api/fetch-food-nutrition', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ foodName: search }),
+        body: JSON.stringify({ foodName: search.trim() }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed')
