@@ -10,6 +10,7 @@ interface Transaction {
   id: string
   type: 'income' | 'expense'
   amount: number
+  weight_kg: number | null
   category: string
   description: string | null
   date: string
@@ -18,17 +19,24 @@ interface Transaction {
 interface Profile { id: string; name: string }
 
 const INCOME_CATS = ['Salary', 'Freelance', 'Business', 'Investment', 'Gift', 'Other']
-const EXPENSE_CATS = ['Food', 'Transport', 'Housing', 'Healthcare', 'Entertainment', 'Education', 'Shopping', 'Utilities', 'Other']
+const EXPENSE_CATS = [
+  'Food', 'Vegetable', 'Grocery', 'Transport', 'Bike',
+  'Housing', 'Healthcare', 'Entertainment', 'Education',
+  'Shopping', 'Utilities', 'Other',
+]
 
 const inputCls = 'bg-slate-900 border border-slate-800 rounded-[10px] px-4 py-3 text-slate-100 w-full text-sm transition-colors focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/10 outline-none placeholder:text-slate-400'
 const labelCls = 'block text-xs font-semibold text-slate-400 uppercase tracking-[0.05em] mb-1.5'
 
 const catColors: Record<string, string> = {
   Salary: '#22d3ee', Freelance: '#34d399', Business: '#818cf8', Investment: '#f59e0b',
-  Gift: '#f472b6', Food: '#f87171', Transport: '#fb923c', Housing: '#a78bfa',
-  Healthcare: '#2dd4bf', Entertainment: '#e879f9', Education: '#60a5fa',
-  Shopping: '#fbbf24', Utilities: '#94a3b8', Other: '#64748b',
+  Gift: '#f472b6',
+  Food: '#f87171', Vegetable: '#4ade80', Grocery: '#fb923c', Transport: '#fb923c',
+  Bike: '#a78bfa', Housing: '#818cf8', Healthcare: '#2dd4bf', Entertainment: '#e879f9',
+  Education: '#60a5fa', Shopping: '#fbbf24', Utilities: '#94a3b8', Other: '#64748b',
 }
+
+const WEIGHT_CATS = new Set(['Vegetable', 'Grocery', 'Food'])
 
 function fmt(n: number) {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -43,7 +51,7 @@ export default function MoneyPage() {
   const today = new Date().toISOString().split('T')[0]
 
   const [incomeForm, setIncomeForm] = useState({ amount: '', category: 'Salary', description: '', date: today })
-  const [expenseForm, setExpenseForm] = useState({ amount: '', category: 'Food', description: '', date: today })
+  const [expenseForm, setExpenseForm] = useState({ amount: '', weight_kg: '', category: 'Food', description: '', date: today })
   const router = useRouter()
 
   const load = useCallback(async () => {
@@ -90,11 +98,12 @@ export default function MoneyPage() {
       user_id: profile.id,
       type: 'expense',
       amount: parseFloat(expenseForm.amount),
+      weight_kg: expenseForm.weight_kg ? parseFloat(expenseForm.weight_kg) : null,
       category: expenseForm.category,
       description: expenseForm.description || null,
       date: expenseForm.date,
     })
-    setExpenseForm({ amount: '', category: 'Food', description: '', date: today })
+    setExpenseForm({ amount: '', weight_kg: '', category: 'Food', description: '', date: today })
     await load()
     setLoading(false)
     setSaved(true)
@@ -108,12 +117,13 @@ export default function MoneyPage() {
     setTransactions(t => t.filter(x => x.id !== id))
   }
 
-  const totalIncome = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
-  const totalExpense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
-  const balance = totalIncome - totalExpense
+  const totalIncome   = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
+  const totalExpense  = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
+  const balance       = totalIncome - totalExpense
+  const incomeList    = transactions.filter(t => t.type === 'income')
+  const expenseList   = transactions.filter(t => t.type === 'expense')
 
-  const incomeList = transactions.filter(t => t.type === 'income')
-  const expenseList = transactions.filter(t => t.type === 'expense')
+  const showWeight = WEIGHT_CATS.has(expenseForm.category)
 
   return (
     <div className="min-h-screen" style={{ background: '#0a0e1a' }}>
@@ -156,7 +166,7 @@ export default function MoneyPage() {
               className="flex-1 py-2 rounded-lg text-[13px] font-semibold border-none cursor-pointer transition-all"
               style={{
                 background: tab === t.key
-                  ? t.key === 'income' ? 'linear-gradient(135deg,#22d3ee,#34d399)'
+                  ? t.key === 'income'  ? 'linear-gradient(135deg,#22d3ee,#34d399)'
                   : t.key === 'expense' ? 'linear-gradient(135deg,#f87171,#f59e0b)'
                   : 'linear-gradient(135deg,#22d3ee,#818cf8)'
                   : 'transparent',
@@ -195,8 +205,11 @@ export default function MoneyPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={labelCls}>Amount (৳)</label>
-                  <input className={inputCls} type="number" min="0" step="0.01" placeholder="0.00"
-                    value={incomeForm.amount} onChange={e => setIncomeForm(f => ({ ...f, amount: e.target.value }))} required />
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-semibold">৳</span>
+                    <input className={inputCls + ' pl-7'} type="number" min="0" step="0.01" placeholder="0.00"
+                      value={incomeForm.amount} onChange={e => setIncomeForm(f => ({ ...f, amount: e.target.value }))} required />
+                  </div>
                 </div>
                 <div>
                   <label className={labelCls}>Date</label>
@@ -236,7 +249,6 @@ export default function MoneyPage() {
               </button>
             </form>
 
-            {/* Income history */}
             {incomeList.length > 0 && (
               <div>
                 <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Income History</div>
@@ -254,12 +266,28 @@ export default function MoneyPage() {
             <form onSubmit={saveExpense} className="bg-gray-900 border border-slate-800 rounded-2xl p-5 space-y-4">
               <div className="text-[13px] font-bold text-red-400 uppercase tracking-wider">Add Expense</div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
+              {/* Amount + Weight side by side */}
+              <div className={`grid gap-3 ${showWeight ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                <div className={showWeight ? 'col-span-1' : ''}>
                   <label className={labelCls}>Amount (৳)</label>
-                  <input className={inputCls} type="number" min="0" step="0.01" placeholder="0.00"
-                    value={expenseForm.amount} onChange={e => setExpenseForm(f => ({ ...f, amount: e.target.value }))} required />
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-semibold">৳</span>
+                    <input className={inputCls + ' pl-7'} type="number" min="0" step="0.01" placeholder="0.00"
+                      value={expenseForm.amount} onChange={e => setExpenseForm(f => ({ ...f, amount: e.target.value }))} required />
+                  </div>
                 </div>
+
+                {showWeight && (
+                  <div>
+                    <label className={labelCls}>Weight (kg)</label>
+                    <div className="relative">
+                      <input className={inputCls + ' pr-10'} type="number" min="0" step="0.001" placeholder="0.0"
+                        value={expenseForm.weight_kg} onChange={e => setExpenseForm(f => ({ ...f, weight_kg: e.target.value }))} />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs font-semibold">kg</span>
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <label className={labelCls}>Date</label>
                   <input className={inputCls} type="date" max={today}
@@ -272,7 +300,7 @@ export default function MoneyPage() {
                 <div className="flex flex-wrap gap-2">
                   {EXPENSE_CATS.map(c => (
                     <button key={c} type="button"
-                      onClick={() => setExpenseForm(f => ({ ...f, category: c }))}
+                      onClick={() => setExpenseForm(f => ({ ...f, category: c, weight_kg: WEIGHT_CATS.has(c) ? f.weight_kg : '' }))}
                       className="px-3 py-1.5 rounded-lg text-[12px] font-semibold border cursor-pointer transition-all"
                       style={{
                         background: expenseForm.category === c ? (catColors[c] + '22') : 'transparent',
@@ -287,7 +315,7 @@ export default function MoneyPage() {
 
               <div>
                 <label className={labelCls}>Description (optional)</label>
-                <input className={inputCls} placeholder="e.g. Grocery shopping"
+                <input className={inputCls} placeholder="e.g. Tomato, Potato…"
                   value={expenseForm.description} onChange={e => setExpenseForm(f => ({ ...f, description: e.target.value }))} />
               </div>
 
@@ -298,7 +326,6 @@ export default function MoneyPage() {
               </button>
             </form>
 
-            {/* Expense history */}
             {expenseList.length > 0 && (
               <div>
                 <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Expense History</div>
@@ -319,12 +346,12 @@ function TransactionRow({ tx, onDelete }: { tx: Transaction; onDelete: (id: stri
   const color = catColors[tx.category] ?? '#64748b'
   return (
     <div className="group flex items-center gap-3 bg-gray-900 border border-slate-800 rounded-xl px-4 py-3 hover:border-slate-700 transition-colors">
-      <div className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-base"
-        style={{ background: color + '22', border: `1px solid ${color}33` }}>
+      <div className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-base font-bold"
+        style={{ background: color + '22', border: `1px solid ${color}33`, color }}>
         {isIncome ? '↑' : '↓'}
       </div>
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[13px] font-semibold text-slate-200 truncate">
             {tx.description || tx.category}
           </span>
@@ -333,12 +360,22 @@ function TransactionRow({ tx, onDelete }: { tx: Transaction; onDelete: (id: stri
             {tx.category}
           </span>
         </div>
-        <div className="text-[11px] text-slate-600 mt-0.5">
-          {format(parseISO(tx.date), 'dd MMM yyyy')}
+        <div className="flex items-center gap-2 mt-0.5">
+          <span className="text-[11px] text-slate-600">{format(parseISO(tx.date), 'dd MMM yyyy')}</span>
+          {tx.weight_kg != null && (
+            <span className="text-[11px] text-slate-500 font-semibold">{tx.weight_kg} kg</span>
+          )}
         </div>
       </div>
-      <div className={`text-[14px] font-bold flex-shrink-0 ${isIncome ? 'text-emerald-400' : 'text-red-400'}`}>
-        {isIncome ? '+' : '-'}৳{tx.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+      <div className="text-right flex-shrink-0">
+        <div className={`text-[14px] font-bold ${isIncome ? 'text-emerald-400' : 'text-red-400'}`}>
+          {isIncome ? '+' : '-'}৳{tx.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+        </div>
+        {tx.weight_kg != null && tx.weight_kg > 0 && (
+          <div className="text-[10px] text-slate-600">
+            ৳{(tx.amount / tx.weight_kg).toFixed(0)}/kg
+          </div>
+        )}
       </div>
       <button onClick={() => onDelete(tx.id)}
         className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 ml-1 w-7 h-7 flex items-center justify-center rounded-lg border border-transparent text-slate-600 hover:text-red-400 hover:border-red-400/30 bg-transparent cursor-pointer transition-all flex-shrink-0">
