@@ -85,7 +85,7 @@ export default function MoneyPage() {
     const toSave = rows.filter(r => r.item.trim())
     if (!toSave.length) return
     await supabase.from('expense_items').upsert(
-      toSave.map(r => ({ name: r.item.trim(), category: r.category })),
+      toSave.map(r => ({ user_id: profile!.id, name: r.item.trim(), category: r.category })),
       { onConflict: 'name,category', ignoreDuplicates: true }
     )
   }

@@ -162,10 +162,13 @@ export default function LogFoodPage() {
   const [aiLoading, setAiLoading] = useState(false)
   const [aiFood, setAiFood] = useState<FoodItem | null>(null)
   const [aiError, setAiError] = useState('')
-  const [newFood, setNewFood] = useState({ name: '', calories: '', protein: '', carbs: '', fat: '', fiber: '', sugar: '', sat_fat: '', unit_weight: '', unit_label: '' })
+  const [newFood, setNewFood] = useState({ name: '', name_bn: '', calories: '', protein: '', carbs: '', fat: '', fiber: '', sugar: '', sat_fat: '', unit_weight: '', unit_label: '' })
 
   // Custom tab
   const [customFood, setCustomFood] = useState({ name: '', calories: '', protein: '', carbs: '', fat: '', fiber: '' })
+
+  // Batch queue
+  const [pendingItems, setPendingItems] = useState<{ id: number; food: FoodItem; grams: number }[]>([])
 
   // Log state
   const [loading, setLoading] = useState(false)
@@ -231,7 +234,7 @@ export default function LogFoodPage() {
   function resetSearch() {
     setSearch(''); setSelected(null); setDbResults([])
     setAddMode(null); setAiFood(null); setAiError('')
-    setNewFood({ name: '', calories: '', protein: '', carbs: '', fat: '', fiber: '', sugar: '', sat_fat: '', unit_weight: '', unit_label: '' })
+    setNewFood({ name: '', name_bn: '', calories: '', protein: '', carbs: '', fat: '', fiber: '', sugar: '', sat_fat: '', unit_weight: '', unit_label: '' })
     setQuantity('100'); setCount('1'); setQuantityMode('weight')
   }
 
@@ -304,13 +307,30 @@ export default function LogFoodPage() {
     })
   }
 
+  // ── Batch helpers ──
+  function addToBatch(food: FoodItem, grams: number) {
+    setPendingItems(prev => [...prev, { id: Date.now() + Math.random(), food, grams }])
+  }
+  function removeFromBatch(id: number) {
+    setPendingItems(prev => prev.filter(p => p.id !== id))
+  }
+  async function logAll() {
+    if (!pendingItems.length || !profile) return
+    setLoading(true)
+    for (const item of pendingItems) {
+      await logFoodEntry(item.food, item.grams)
+    }
+    setPendingItems([])
+    setSuccess(true)
+    setTimeout(() => setSuccess(false), 3000)
+    setLoading(false)
+  }
+
   // ── Log actions ──
   async function logFood() {
     if (!selected || !profile) return
-    setLoading(true)
-    await logFoodEntry(selected, effectiveGrams)
-    setSuccess(true); resetSearch()
-    setTimeout(() => setSuccess(false), 3000); setLoading(false)
+    addToBatch(selected, effectiveGrams)
+    resetSearch()
   }
 
   async function fetchWithAI() {
@@ -335,18 +355,15 @@ export default function LogFoodPage() {
 
   async function saveAiFoodAndLog() {
     if (!aiFood || !profile) return
-    setLoading(true)
-    // Already saved to DB during fetchWithAI — just log
-    await logFoodEntry(aiFood, aiEffectiveGrams)
-    setSuccess(true); resetSearch()
-    setTimeout(() => setSuccess(false), 3000); setLoading(false)
+    addToBatch(aiFood, aiEffectiveGrams)
+    resetSearch()
   }
 
   async function saveManualFoodAndLog() {
     if (!newFood.name || !newFood.calories || !profile) return
-    setLoading(true)
     const food: FoodItem = {
-      name: newFood.name, calories: parseFloat(newFood.calories) || 0,
+      name: newFood.name, name_bn: newFood.name_bn || undefined,
+      calories: parseFloat(newFood.calories) || 0,
       protein_g: parseFloat(newFood.protein) || 0, carbs_g: parseFloat(newFood.carbs) || 0,
       fat_g: parseFloat(newFood.fat) || 0, saturated_fat_g: parseFloat(newFood.sat_fat) || 0,
       fiber_g: parseFloat(newFood.fiber) || 0, sugar_g: parseFloat(newFood.sugar) || 0,
@@ -356,14 +373,12 @@ export default function LogFoodPage() {
       unit_label: newFood.unit_label || undefined,
     }
     await saveFoodToDb(food)
-    await logFoodEntry(food, parseFloat(quantity) || 100)
-    setSuccess(true); resetSearch()
-    setTimeout(() => setSuccess(false), 3000); setLoading(false)
+    addToBatch(food, parseFloat(quantity) || 100)
+    resetSearch()
   }
 
   async function logCustomFood() {
     if (!customFood.name || !customFood.calories || !profile) return
-    setLoading(true)
     const grams = parseFloat(quantity) || 100
     const food: FoodItem = {
       name: customFood.name, calories: parseFloat(customFood.calories) || 0,
@@ -374,10 +389,8 @@ export default function LogFoodPage() {
       calcium_mg: 0, iron_mg: 0, potassium_mg: 0, sodium_mg: 0,
     }
     await saveFoodToDb(food)
-    await logFoodEntry(food, grams)
-    setSuccess(true)
+    addToBatch(food, grams)
     setCustomFood({ name: '', calories: '', protein: '', carbs: '', fat: '', fiber: '' })
-    setTimeout(() => setSuccess(false), 3000); setLoading(false)
   }
 
   // ── Photo tab ──
@@ -414,12 +427,10 @@ export default function LogFoodPage() {
   }
   async function logPhotoFood() {
     if (!selectedAnalyzed || !profile) return
-    setLoading(true)
     const food: FoodItem = { ...selectedAnalyzed, vitamin_a: 0, vitamin_c: 0, vitamin_d: 0, vitamin_e: 0, calcium_mg: 0, iron_mg: 0, potassium_mg: 0, sodium_mg: 0 }
     await saveFoodToDb(food)
-    await logFoodEntry(food, photoEffectiveGrams)
-    setSuccess(true); resetPhotoState()
-    setTimeout(() => setSuccess(false), 3000); setLoading(false)
+    addToBatch(food, photoEffectiveGrams)
+    resetPhotoState()
   }
 
   // ── Render ──
@@ -431,12 +442,6 @@ export default function LogFoodPage() {
           <h1 className="text-2xl font-extrabold m-0 mb-1">Log Food 🍽️</h1>
           <p className="text-slate-500 text-sm m-0">Search the database, enter custom food, or snap a photo</p>
         </div>
-
-        {success && (
-          <div className="animate-in mb-4 bg-emerald-400/10 border border-emerald-400/30 rounded-xl px-4 py-3 text-emerald-400 font-semibold flex items-center gap-2">
-            ✅ Food logged successfully!
-          </div>
-        )}
 
         {/* Date + Meal selector */}
         <div className="bg-gray-900 border border-slate-800 rounded-2xl p-5 mb-4">
@@ -501,7 +506,7 @@ export default function LogFoodPage() {
               <label className={labelCls}>Search Food</label>
               <input
                 className={inputCls}
-                placeholder="e.g. Egg, Banana, Chicken Biryani..."
+                placeholder="Search in English or বাংলা..."
                 value={search}
                 onChange={e => { setSearch(e.target.value); setSelected(null); setAddMode(null); setAiFood(null) }}
               />
@@ -520,7 +525,10 @@ export default function LogFoodPage() {
                   <div key={food.name} onClick={() => selectFood(food)}
                     className={`px-4 py-3 cursor-pointer transition-colors hover:bg-slate-800 flex justify-between items-center ${i < dbResults.length - 1 ? 'border-b border-slate-900' : ''}`}>
                     <div>
-                      <span className="font-semibold text-sm">{food.name}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-sm">{food.name}</span>
+                        {food.name_bn && <span className="text-[12px] text-slate-400">{food.name_bn}</span>}
+                      </div>
                       <div className="text-[11px] text-slate-500 mt-0.5">
                         P:{food.protein_g}g · C:{food.carbs_g}g · F:{food.fat_g}g per 100g
                         {food.unit_weight_g && <span className="text-cyan-400/60 ml-1.5">· {food.unit_weight_g}g/{food.unit_label}</span>}
@@ -585,10 +593,10 @@ export default function LogFoodPage() {
                     </div>
                     <QuantityInput food={aiFood} quantityMode={quantityMode} setQuantityMode={setQuantityMode}
                       quantity={quantity} setQuantity={setQuantity} count={count} setCount={setCount} effectiveGrams={aiEffectiveGrams} />
-                    <button type="button" onClick={saveAiFoodAndLog} disabled={loading}
-                      className="w-full py-3 font-semibold text-white border-none rounded-xl cursor-pointer transition-all hover:opacity-90 disabled:opacity-70"
+                    <button type="button" onClick={saveAiFoodAndLog}
+                      className="w-full py-3 font-semibold text-white border-none rounded-xl cursor-pointer transition-all hover:opacity-90"
                       style={{ background: 'linear-gradient(135deg, #22d3ee, #818cf8)' }}>
-                      {loading ? 'Logging...' : `Log ${aiEffectiveGrams}g of ${aiFood.name}`}
+                      + Add to Queue
                     </button>
                     <p className="text-center text-xs text-emerald-600 mt-2">✓ Saved to database — won't call AI again for this food</p>
                   </>
@@ -604,9 +612,13 @@ export default function LogFoodPage() {
                   <button onClick={() => setAddMode(null)} className="bg-transparent border-none text-slate-600 cursor-pointer text-xl hover:text-slate-400">×</button>
                 </div>
                 <div className="grid grid-cols-2 gap-3 mb-3">
-                  <div className="col-span-2">
-                    <label className={labelCls}>Food Name *</label>
+                  <div>
+                    <label className={labelCls}>Food Name (English) *</label>
                     <input className={inputCls} placeholder="e.g. Chicken Biryani" value={newFood.name} onChange={e => setNewFood(f => ({ ...f, name: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>বাংলা নাম <span className="text-slate-600 normal-case">optional</span></label>
+                    <input className={inputCls} placeholder="যেমন: মুরগির বিরিয়ানি" value={newFood.name_bn} onChange={e => setNewFood(f => ({ ...f, name_bn: e.target.value }))} />
                   </div>
                   <div>
                     <label className={labelCls}>Calories (per 100g) *</label>
@@ -646,10 +658,10 @@ export default function LogFoodPage() {
                   </div>
                 </div>
                 <button type="button" onClick={saveManualFoodAndLog}
-                  disabled={loading || !newFood.name || !newFood.calories}
+                  disabled={!newFood.name || !newFood.calories}
                   className="w-full py-3 font-semibold text-white border-none rounded-xl cursor-pointer transition-all hover:opacity-90 disabled:opacity-50"
                   style={{ background: 'linear-gradient(135deg, #22d3ee, #818cf8)' }}>
-                  {loading ? 'Saving...' : '💾 Save to Database & Log'}
+                  💾 Save & Add to Queue
                 </button>
                 <p className="text-center text-xs text-slate-600 mt-2">This food will be saved for future searches</p>
               </div>
@@ -662,6 +674,7 @@ export default function LogFoodPage() {
                   <div className="flex justify-between items-start mb-3">
                     <div>
                       <div className="font-bold text-base">{selected.name}</div>
+                      {selected.name_bn && <div className="text-sm text-slate-400">{selected.name_bn}</div>}
                       <div className="text-xs text-slate-500 mt-0.5">
                         Per 100g · {effectiveGrams}g selected
                         {quantityMode === 'count' && selected.unit_weight_g && (
@@ -676,14 +689,10 @@ export default function LogFoodPage() {
                 </div>
                 <QuantityInput food={selected} quantityMode={quantityMode} setQuantityMode={setQuantityMode}
                   quantity={quantity} setQuantity={setQuantity} count={count} setCount={setCount} effectiveGrams={effectiveGrams} />
-                <button className="w-full py-3 font-semibold text-white border-none rounded-xl cursor-pointer transition-all hover:opacity-90 disabled:opacity-70"
+                <button className="w-full py-3 font-semibold text-white border-none rounded-xl cursor-pointer transition-all hover:opacity-90"
                   style={{ background: 'linear-gradient(135deg, #22d3ee, #818cf8)' }}
-                  onClick={logFood} disabled={loading}>
-                  {loading ? 'Logging...' : (
-                    quantityMode === 'count' && selected.unit_weight_g
-                      ? `Log ${count} ${selected.unit_label}(s) (${effectiveGrams}g)`
-                      : `Log ${effectiveGrams}g of ${selected.name}`
-                  )}
+                  onClick={logFood}>
+                  + Add to Queue
                 </button>
               </div>
             )}
@@ -727,8 +736,8 @@ export default function LogFoodPage() {
             <button
               className="w-full mt-4 py-3 font-semibold text-white border-none rounded-xl cursor-pointer transition-all hover:opacity-90 disabled:opacity-70"
               style={{ background: 'linear-gradient(135deg, #22d3ee, #818cf8)' }}
-              onClick={logCustomFood} disabled={loading || !customFood.name || !customFood.calories}>
-              {loading ? 'Saving...' : '💾 Save to Database & Log'}
+              onClick={logCustomFood} disabled={!customFood.name || !customFood.calories}>
+              💾 Save & Add to Queue
             </button>
             <p className="text-center text-xs text-slate-600 mt-2">Saved to food database for future searches</p>
           </div>
@@ -812,14 +821,10 @@ export default function LogFoodPage() {
                     </div>
                     <QuantityInput food={selectedAnalyzed} quantityMode={quantityMode} setQuantityMode={setQuantityMode}
                       quantity={quantity} setQuantity={setQuantity} count={count} setCount={setCount} effectiveGrams={photoEffectiveGrams} />
-                    <button type="button" onClick={logPhotoFood} disabled={loading}
-                      className="w-full py-3 font-semibold text-white border-none rounded-xl cursor-pointer transition-all hover:opacity-90 disabled:opacity-70"
+                    <button type="button" onClick={logPhotoFood}
+                      className="w-full py-3 font-semibold text-white border-none rounded-xl cursor-pointer transition-all hover:opacity-90"
                       style={{ background: 'linear-gradient(135deg, #22d3ee, #818cf8)' }}>
-                      {loading ? 'Logging...' : (
-                        quantityMode === 'count' && selectedAnalyzed.unit_weight_g
-                          ? `Log ${count} ${selectedAnalyzed.unit_label}(s) (${photoEffectiveGrams}g)`
-                          : `Log ${photoEffectiveGrams}g of ${selectedAnalyzed.name}`
-                      )}
+                      + Add to Queue
                     </button>
                     <button type="button" onClick={resetPhotoState}
                       className="w-full mt-2 py-2 text-sm text-slate-500 hover:text-slate-300 transition-colors cursor-pointer bg-transparent border-none">
@@ -829,6 +834,45 @@ export default function LogFoodPage() {
                 )}
               </div>
             )}
+          </div>
+        )}
+        {/* ──────────────── BATCH QUEUE ──────────────── */}
+        {pendingItems.length > 0 && (
+          <div className="mt-4 bg-gray-900 border border-emerald-400/20 rounded-2xl p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-emerald-400 m-0">Queue ({pendingItems.length} item{pendingItems.length !== 1 ? 's' : ''})</h3>
+              <span className="text-xs text-slate-500">
+                {pendingItems.reduce((sum, p) => sum + Math.round(p.food.calories * p.grams / 100), 0)} kcal total
+              </span>
+            </div>
+            <div className="flex flex-col gap-2 mb-4">
+              {pendingItems.map(p => (
+                <div key={p.id} className="flex items-center justify-between bg-slate-900 rounded-xl px-4 py-2.5">
+                  <div>
+                    <span className="text-sm font-semibold text-slate-100">{p.food.name}</span>
+                    <span className="text-xs text-slate-500 ml-2">{p.grams}g</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-bold text-cyan-400">{Math.round(p.food.calories * p.grams / 100)} kcal</span>
+                    <button type="button" onClick={() => removeFromBatch(p.id)}
+                      className="bg-transparent border-none text-slate-600 cursor-pointer text-lg leading-none hover:text-red-400 transition-colors">
+                      ×
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button type="button" onClick={logAll} disabled={loading}
+              className="w-full py-3 font-semibold text-white border-none rounded-xl cursor-pointer transition-all hover:opacity-90 disabled:opacity-70"
+              style={{ background: 'linear-gradient(135deg, #34d399, #22d3ee)' }}>
+              {loading ? 'Logging...' : `✅ Log All ${pendingItems.length} Item${pendingItems.length !== 1 ? 's' : ''}`}
+            </button>
+          </div>
+        )}
+
+        {success && pendingItems.length === 0 && (
+          <div className="mt-4 animate-in bg-emerald-400/10 border border-emerald-400/30 rounded-xl px-4 py-3 text-emerald-400 font-semibold flex items-center gap-2">
+            ✅ All items logged successfully!
           </div>
         )}
       </div>

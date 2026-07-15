@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 
@@ -7,11 +7,22 @@ export default function AuthPage() {
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [name, setName] = useState('')
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const router = useRouter()
+
+  useEffect(() => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user) {
+        const { data: profile } = await supabase.from('profiles').select('id').eq('id', session.user.id).single()
+        router.replace(profile ? '/dashboard' : '/onboarding')
+      } else {
+        setLoading(false)
+      }
+    })
+  }, [router])
 
   async function handleAuth(e: React.FormEvent) {
     e.preventDefault()
@@ -41,6 +52,12 @@ export default function AuthPage() {
     }
     setLoading(false)
   }
+
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <span className="w-8 h-8 border-2 border-slate-700 border-t-cyan-400 rounded-full animate-spin" />
+    </div>
+  )
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6 relative">
